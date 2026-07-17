@@ -111,7 +111,11 @@ table.k-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .k-input, .k-select { background: #0e142a; border: 1px solid #2a3350; color: #e5e7eb;
   padding: 9px 11px; border-radius: 8px; font-size: 14px; width: 100%; }
 .k-btn { background: var(--brand-grad); color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 14px; }
-.k-btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+.k-btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+/* 表格内多个操作按钮：统一间距、可换行、不挤在一起 */
+.k-table td form { display: inline-block; margin: 0 4px 4px 0; }
+.k-table td .k-btn-sm, .k-table td .k-tag { margin: 2px 4px 2px 0; }
+.k-table td a.k-tag { display: inline-block; }
 .k-btn-ghost { background: #1b2340; color: #cdd5ee; }
 .k-btn-danger { background: rgba(220,38,38,.15); color: #fca5a5; }
 .k-tag { font-size: 11px; padding: 2px 9px; border-radius: 10px; background: #1b2340; color: #9aa4bf; }

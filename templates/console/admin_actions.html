@@ -10,12 +10,12 @@
     <div class="form-row">
       <div><label>所属门店</label><select class="k-select" name="store_id" required>
         {% for s in stores %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
-      <div><label>动作名称</label><input class="k-input" name="name" required></div>
-      <div><label>目标顾客</label><input class="k-input" name="target_customer"></div>
+      <div><label>动作名称 *</label><input class="k-input" name="name" required></div>
+      <div><label>目标顾客 *</label><input class="k-input" name="target_customer" required></div>
     </div>
     <div class="form-row">
-      <div><label>消费场景</label><input class="k-input" name="target_scene"></div>
-      <div style="grid-column:2/4"><label>核心假设</label><input class="k-input" name="hypothesis"></div>
+      <div><label>消费场景 *</label><input class="k-input" name="target_scene" required></div>
+      <div style="grid-column:2/4"><label>核心假设 *</label><input class="k-input" name="hypothesis" required placeholder="如：突出胖头鱼和家庭包间，可提高家庭聚餐预约"></div>
     </div>
     <div class="form-row">
       <div><label>成功指标</label><select class="k-select" name="success_metric">

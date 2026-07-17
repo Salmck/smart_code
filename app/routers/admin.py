@@ -144,6 +144,12 @@ def create_campaign(user: AuthUser = Depends(require_admin), db=Depends(get_db),
     action = db.get(GrowthAction, int(growth_action_id))
     if not action:
         raise HTTPException(status_code=404, detail="增长动作不存在")
+    if not package_title.strip():
+        return JSONResponse({"detail": "套餐标题必填"}, status_code=400)
+    if float(price) <= 0:
+        return JSONResponse({"detail": "活动价必须大于 0"}, status_code=400)
+    if int(stock) <= 0:
+        return JSONResponse({"detail": "库存必须大于 0"}, status_code=400)
     c = catalog_service.create_campaign(
         db, store_id=action.store_id, growth_action_id=action.id,
         name=sanitize_text(name, 128), package_title=sanitize_text(package_title, 128),

@@ -100,6 +100,8 @@ if ($("send-code")) {
     if (!code) return vmsg("请输入验证码");
     const { ok, data } = await post("/api/customer/verify", { short_code: SHORT, phone, code });
     if (!ok) return vmsg(data.detail);
+    // 已有凭证：直接带去凭证页（找回已领/已约的码）
+    if (data.existing_voucher) { location.href = data.existing_voucher; return; }
     $("verify-step").style.display = "none";
     $("action-step").style.display = "block";
   };

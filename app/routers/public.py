@@ -6,7 +6,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from .. import captcha
 from ..attribution import AttributionContext
@@ -46,7 +46,8 @@ def _resolve(db, short_code: str):
 
 # ---------- 扫码落地 + 套餐页 ----------
 @router.get("/q/{short_code}")
-def scan_landing(short_code: str, request: Request, db=Depends(get_db)):
+def scan_landing(short_code: str, request: Request, db=Depends(get_db),
+                 customer_id: int | None = Depends(current_customer)):
     qr, campaign = _resolve(db, short_code)
     if not qr or not campaign:
         return templates.TemplateResponse(
@@ -76,12 +77,16 @@ def scan_landing(short_code: str, request: Request, db=Depends(get_db)):
     log_from_ctx(db, EventType.VIEW_CAMPAIGN, ctx, visitor_id=vid, session_id=sid)
 
     open_ok, reason = campaign_is_open(campaign)
+    # 已验证过手机号的回头客：显示「查看我的凭证」，避免找不到已领/已约的码
+    my_voucher = (claim_service.latest_active_voucher(db, campaign.id, customer_id)
+                  if customer_id else None)
     resp = templates.TemplateResponse(
         "customer/campaign.html",
         {
             "request": request, "campaign": campaign, "store": store,
             "short_code": short_code, "open_ok": open_ok, "reason": reason,
             "remaining": max(campaign.stock - campaign.claimed, 0),
+            "my_voucher": my_voucher,
         },
     )
     resp.set_cookie(VID_COOKIE, vid, max_age=31536000, httponly=True)
@@ -109,6 +114,12 @@ def action_page(short_code: str, request: Request, db=Depends(get_db),
 
     ev_type = EventType.CLICK_RESERVE if campaign.need_reservation else EventType.CLICK_CLAIM
     log_from_ctx(db, ev_type, ctx, visitor_id=vid, customer_id=customer_id)
+
+    # 已有凭证的回头客：直接带去凭证页，避免重复领取/预约
+    if customer_id:
+        existing = claim_service.latest_active_voucher(db, campaign.id, customer_id)
+        if existing:
+            return RedirectResponse(f"/v/{existing.code}", status_code=302)
 
     return templates.TemplateResponse(
         "customer/action.html",
@@ -158,8 +169,11 @@ def verify_code(request: Request, db=Depends(get_db), short_code: str = Form(...
                  visitor_id=request.cookies.get(VID_COOKIE),
                  customer_id=result["customer_id"])
 
+    # 验证后若该顾客已在本活动有凭证，直接带去凭证页（找回已领/已约的码）
+    existing = claim_service.latest_active_voucher(db, campaign.id, result["customer_id"])
     resp = JSONResponse({"ok": True, "token": result["token"],
-                         "need_reservation": campaign.need_reservation})
+                         "need_reservation": campaign.need_reservation,
+                         "existing_voucher": f"/v/{existing.code}" if existing else None})
     # 双通道：H5 用 Cookie；小程序可从 body 取 token 走 Bearer
     resp.set_cookie(CUSTOMER_COOKIE, result["token"], max_age=604800, httponly=True)
     return resp

@@ -35,6 +35,18 @@ class ClaimError(Exception):
         self.status = status
 
 
+def latest_active_voucher(db, campaign_id: int, customer_id: int):
+    """返回该顾客在此活动下最近的有效凭证（用于「找回我的码」）。"""
+    return (
+        db.query(Voucher)
+        .filter(Voucher.campaign_id == campaign_id,
+                Voucher.customer_id == customer_id,
+                Voucher.status != VoucherStatus.CANCELLED)
+        .order_by(Voucher.created_at.desc())
+        .first()
+    )
+
+
 def _check_per_person_limit(db, campaign: Campaign, customer_id: int):
     active = (
         db.query(Voucher)
@@ -46,7 +58,10 @@ def _check_per_person_limit(db, campaign: Campaign, customer_id: int):
         .count()
     )
     if active >= campaign.per_person_limit:
-        raise ClaimError(f"每人限领 {campaign.per_person_limit} 份，您已达上限")
+        word = "预约" if campaign.need_reservation else "领取"
+        raise ClaimError(
+            f"同一手机号每个活动限{word} {campaign.per_person_limit} 次（所有渠道合计），"
+            f"您已参与过，请在「我的凭证」中查看")
 
 
 def _decrement_stock(db, campaign_id: int) -> bool:
