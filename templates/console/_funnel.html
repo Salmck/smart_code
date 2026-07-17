@@ -1,14 +1,33 @@
-{# 转化漏斗 + 核心指标，入参 f = funnel(...) 结果 #}
-<div class="k-grid" style="margin-bottom:16px">
-  <div class="stat"><div class="n brand">{{ f.total_scan }}</div><div class="l">总扫码次数</div></div>
-  <div class="stat"><div class="n">{{ f.unique_scan }}</div><div class="l">独立扫码人数<span class="muted">（近似）</span></div></div>
-  <div class="stat"><div class="n">{{ f.reserve }}</div><div class="l">预约人数</div></div>
-  <div class="stat"><div class="n" style="color:#4ade80">{{ f.redeem }}</div><div class="l">核销人数</div></div>
-  <div class="stat"><div class="n">¥{{ f.redeem_amount|yuan }}</div><div class="l">核销金额</div></div>
+{# 数据可视化：KPI 图标卡 + 转化漏斗。入参 f = funnel(...) #}
+{% set icon = {
+  'scan': '<path d="M3 7V4a1 1 0 011-1h3M17 3h3a1 1 0 011 1v3M21 17v3a1 1 0 01-1 1h-3M7 21H4a1 1 0 01-1-1v-3"/><rect x="7" y="7" width="10" height="10" rx="1"/>',
+  'users': '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
+  'calendar': '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  'check': '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/>',
+  'money': '<path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+} %}
+{% macro tile(key, val, label, color, note='') %}
+<div class="stat">
+  <div class="stat-badge" style="background:{{ color }}22;color:{{ color }}">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ icon[key]|safe }}</svg>
+  </div>
+  <div class="stat-body">
+    <div class="n">{{ val }}</div>
+    <div class="l">{{ label }}{% if note %}<span class="stat-note">{{ note }}</span>{% endif %}</div>
+  </div>
+</div>
+{% endmacro %}
+
+<div class="k-grid stat-grid">
+  {{ tile('scan', f.total_scan, '总扫码次数', '#2176FF') }}
+  {{ tile('users', f.unique_scan, '独立扫码人数', '#00D4FF', '近似') }}
+  {{ tile('calendar', f.reserve, '预约人数', '#5B2CFF') }}
+  {{ tile('check', f.redeem, '核销人数', '#22c55e') }}
+  {{ tile('money', '¥' + (f.redeem_amount|yuan), '核销金额', '#f59e0b') }}
 </div>
 
 <div class="k-card">
-  <div style="font-weight:600;margin-bottom:12px">顾客转化漏斗</div>
+  <div class="card-h">顾客转化漏斗</div>
   {% set steps = [
     ('扫码（独立）', f.unique_scan),
     ('浏览套餐', f.view),
@@ -27,12 +46,11 @@
     <span class="val">{{ val }}</span>
   </div>
   {% endfor %}
+  <div class="conv-row">
+    <div class="conv"><span>扫码→预约</span><b>{{ f.rate_scan_to_reserve|pct }}</b></div>
+    <div class="conv"><span>预约→核销</span><b>{{ f.rate_reserve_to_redeem|pct }}</b></div>
+    <div class="conv"><span>扫码→核销</span><b>{{ f.rate_scan_to_redeem|pct }}</b></div>
+    <div class="conv"><span>重复扫码</span><b>{{ f.repeat_scan }}</b></div>
+  </div>
+  <div class="muted" style="margin-top:10px">口径：独立扫码按匿名访客近似（换设备/清缓存会重复计数）；领取/预约/核销人数按顾客手机号去重；分母为 0 显示「暂无数据」。</div>
 </div>
-
-<div class="k-grid">
-  <div class="stat"><div class="n">{{ f.rate_scan_to_reserve|pct }}</div><div class="l">扫码→预约转化率</div></div>
-  <div class="stat"><div class="n">{{ f.rate_reserve_to_redeem|pct }}</div><div class="l">预约→核销转化率</div></div>
-  <div class="stat"><div class="n">{{ f.rate_scan_to_redeem|pct }}</div><div class="l">扫码→核销转化率</div></div>
-  <div class="stat"><div class="n">{{ f.repeat_scan }}</div><div class="l">重复扫码次数</div></div>
-</div>
-<div class="muted" style="margin-top:10px">口径：独立扫码人数按匿名访客近似统计（换设备/清缓存会重复计数）；领取/预约/核销人数按顾客手机号去重。分母为 0 显示「暂无数据」。</div>

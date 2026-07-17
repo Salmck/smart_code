@@ -1,0 +1,21 @@
+{# 渠道效果（嵌入数据首页）。入参 channels = breakdown_by(...,'channel') #}
+<div class="k-card">
+  <div class="card-h">渠道效果 <span class="muted" style="font-weight:400">哪个渠道带来真实核销</span></div>
+  {% if not channels %}
+    <div class="muted">暂无数据</div>
+  {% else %}
+    {% set maxscan = channels|map(attribute='scan')|max %}
+    {% for row in channels %}
+    <div class="chan-row">
+      <span class="chan-name">{{ row.key }}</span>
+      <div class="chan-track"><div class="chan-bar" style="width:{{ (row.scan / (maxscan or 1) * 100)|round(1) }}%"></div></div>
+      <span class="chan-nums">
+        <span class="muted">扫</span>{{ row.scan }}
+        <span class="muted" style="margin-left:8px">约</span>{{ row.reserve }}
+        <span class="muted" style="margin-left:8px">核</span><b style="color:#4ade80">{{ row.redeem }}</b>
+        <span class="chan-rate">{{ row.rate_scan_to_redeem|pct }}</span>
+      </span>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>

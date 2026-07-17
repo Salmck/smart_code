@@ -47,9 +47,10 @@ def dashboard(request: Request, user: AuthUser = Depends(require_owner), db=Depe
     sid = _sid(user)
     store = db.get(Store, sid)
     f = funnel(db, {"store_id": sid})
+    channels = breakdown_by(db, {"store_id": sid}, "channel")
     return templates.TemplateResponse(
         "console/owner_dashboard.html",
-        {"request": request, "user": user, "store": store, "f": f})
+        {"request": request, "user": user, "store": store, "f": f, "channels": channels})
 
 
 @router.get("/campaigns")

@@ -22,7 +22,7 @@ from ..models import (
 from ..render import templates
 from ..services import catalog_service, redemption_service
 from ..services.growth_service import evaluate
-from ..services.stats_service import funnel
+from ..services.stats_service import breakdown_by, funnel
 from ..utils import sanitize_text
 
 router = APIRouter(prefix="/admin")
@@ -44,9 +44,10 @@ def _parse_dt(s: str):
 def dashboard(request: Request, user: AuthUser = Depends(require_admin), db=Depends(get_db)):
     stores = db.query(Store).all()
     overall = funnel(db, {})
+    channels = breakdown_by(db, {}, "channel")
     return templates.TemplateResponse(
         "console/admin_dashboard.html",
-        {"request": request, "user": user, "stores": stores, "f": overall})
+        {"request": request, "user": user, "stores": stores, "f": overall, "channels": channels})
 
 
 # ---------- 门店 ----------

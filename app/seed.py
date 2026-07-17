@@ -91,4 +91,83 @@ def seed_all(db):
                   content_no=content, material_no=material)
 
     db.commit()
+
+    seed_demo_traffic(db, store, action, campaign)
     logger.info("演示数据就绪：门店=%s 活动=%s", store.name, campaign.name)
+
+
+def seed_demo_traffic(db, store, action, campaign):
+    """生成演示流量（扫码/浏览/预约/核销事件 + 少量真实凭证），让仪表盘有真实数据。"""
+    import random
+    from datetime import timedelta
+
+    from .models import (
+        Customer, Event, EventType, QRPlacement, Redemption, Role, User, Voucher,
+        VoucherStatus,
+    )
+    from .shortcode import gen_digits, gen_shortcode
+    from .utils import phone_hash
+
+    staff_user = db.query(User).filter_by(role=Role.STAFF).first()
+    staff_id = staff_user.id if staff_user else 1
+    qrs = db.query(QRPlacement).filter_by(campaign_id=campaign.id).all()
+    # 每个渠道的独立扫码量与逐级转化率（条件概率，制造渠道差异）
+    plan = {
+        "抖音": dict(scans=156, view=.86, click=.44, verify=.52, reserve=.50, redeem=.62),
+        "微信朋友圈": dict(scans=234, view=.82, click=.40, verify=.48, reserve=.46, redeem=.60),
+        "微信社群": dict(scans=89, view=.90, click=.55, verify=.62, reserve=.64, redeem=.75),
+    }
+    now = now_utc()
+
+    def ev(t, qr, vid=None, cid=None):
+        db.add(Event(event_type=t, store_id=store.id, growth_action_id=action.id,
+                     campaign_id=campaign.id, qr_id=qr.id, visitor_id=vid, customer_id=cid,
+                     channel=qr.channel, content_no=qr.content_no, material_no=qr.material_no,
+                     created_at=now - timedelta(hours=random.randint(0, 240))))
+
+    cust_seq = 0
+    for qr in qrs:
+        p = plan.get(qr.channel)
+        if not p:
+            continue
+        for i in range(p["scans"]):
+            vid = f"v{qr.id}_{i}"
+            ev(EventType.SCAN, qr, vid=vid)
+            if random.random() < 0.18:          # 部分重复扫码
+                ev(EventType.SCAN, qr, vid=vid)
+            if random.random() >= p["view"]:
+                continue
+            ev(EventType.VIEW_CAMPAIGN, qr, vid=vid)
+            if random.random() >= p["click"]:
+                continue
+            ev(EventType.CLICK_RESERVE, qr, vid=vid)
+            if random.random() >= p["verify"]:
+                continue
+            # 验证手机号 → 建演示顾客
+            cust_seq += 1
+            phone = "138" + str(10000000 + cust_seq)
+            customer = Customer(name="", phone=phone, phone_hash=phone_hash(phone),
+                                first_seen=now, last_seen=now)
+            db.add(customer)
+            db.flush()
+            ev(EventType.VERIFY_PHONE, qr, vid=vid, cid=customer.id)
+            if random.random() >= p["reserve"]:
+                continue
+            ev(EventType.CREATE_RESERVATION, qr, vid=vid, cid=customer.id)
+            ev(EventType.CONFIRM_RESERVATION, qr, vid=vid, cid=customer.id)
+            if random.random() >= p["redeem"]:
+                continue
+            # 真实核销：建凭证 + 核销记录（让核销金额/核销记录页有数据）
+            voucher = Voucher(
+                code=gen_shortcode(8), backup_code=gen_digits(8), store_id=store.id,
+                campaign_id=campaign.id, customer_id=customer.id, qr_id=qr.id,
+                growth_action_id=action.id, channel=qr.channel, content_no=qr.content_no,
+                status=VoucherStatus.REDEEMED, expires_at=now + timedelta(days=14),
+                redeemed_at=now, redeemed_by=None)
+            db.add(voucher)
+            db.flush()
+            voucher.redeemed_by = staff_id
+            db.add(Redemption(voucher_id=voucher.id, store_id=store.id, staff_id=staff_id,
+                              amount=campaign.price, request_id=f"seed-{voucher.id}"))
+            ev(EventType.REDEEM, qr, vid=vid, cid=customer.id)
+    db.commit()
