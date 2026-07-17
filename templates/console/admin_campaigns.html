@@ -1,47 +1,23 @@
 {% extends "base_console.html" %}
-{% block title %}活动管理{% endblock %}
+{% block title %}活动审核{% endblock %}
 {% block subtitle %}平台管理端{% endblock %}
 {% block nav %}{% set active='campaigns' %}{% include "console/_nav_admin.html" %}{% endblock %}
 {% block content %}
-<h1 class="k-h1">活动与套餐</h1>
-<div class="k-card">
-  <div style="font-weight:600;margin-bottom:10px">新建活动（第一版一活动一套餐）</div>
-  <form method="post" action="/admin/campaigns">
-    <div class="form-row">
-      <div><label>所属增长动作</label><select class="k-select" name="growth_action_id" required>
-        {% for a in actions %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
-      <div><label>活动名称 *</label><input class="k-input" name="name" required></div>
-      <div><label>套餐标题 *</label><input class="k-input" name="package_title" required></div>
-    </div>
-    <div class="form-row">
-      <div style="grid-column:1/4"><label>套餐内容 *</label><input class="k-input" name="package_content" required placeholder="如：胖头鱼一条 · 红烧肉 · 时蔬2份 · 主食 · 例汤"></div>
-    </div>
-    <div class="form-row">
-      <div><label>适用人数 *</label><input class="k-input" name="people" placeholder="6-8人" required></div>
-      <div><label>原价</label><input class="k-input" name="original_price" type="number" min="0" value="0"></div>
-      <div><label>活动价 *</label><input class="k-input" name="price" type="number" min="0.01" step="0.01" required></div>
-      <div><label>库存 *</label><input class="k-input" name="stock" type="number" min="1" value="50" required></div>
-    </div>
-    <div class="form-row">
-      <div><label>每人限领</label><input class="k-input" name="per_person_limit" type="number" value="1"></div>
-      <div><label>凭证有效期(天)</label><input class="k-input" name="voucher_valid_days" type="number" value="14"></div>
-      <div><label>是否需预约</label><select class="k-select" name="need_reservation">
-        <option value="1">需要预约</option><option value="">无需预约</option></select></div>
-    </div>
-    <div><label class="muted">使用规则</label><input class="k-input" name="usage_rules" style="margin-top:4px"></div>
-    <button class="k-btn" style="margin-top:12px">创建活动</button>
-  </form>
-</div>
+<h1 class="k-h1">活动审核
+  {% if pending %}<span class="k-tag warn" style="font-size:13px;margin-left:8px">{{ pending }} 个待审核</span>{% endif %}
+</h1>
+<div class="muted" style="margin-bottom:14px">管理员只审核活动，不编辑活动与套餐。通过后自动生成全部平台二维码。</div>
 <div class="k-card">
   <table class="k-table">
-    <tr><th>活动</th><th>门店</th><th>价格</th><th>库存(已领/总)</th><th>需预约</th><th>状态</th></tr>
+    <tr><th>活动</th><th>门店</th><th>套餐</th><th>价格</th><th>状态</th><th></th></tr>
     {% for row in rows %}
     <tr>
-      <td>{{ row.c.package_title or row.c.name }}</td><td>{{ row.store.name if row.store }}</td>
-      <td>¥{{ row.c.price|yuan }} <span class="muted">/{{ row.c.original_price|yuan }}</span></td>
-      <td>{{ row.c.claimed }}/{{ row.c.stock }}</td>
-      <td>{{ '是' if row.c.need_reservation else '否' }}</td>
-      <td><span class="k-tag">{{ row.c.status }}</span></td>
+      <td>{{ row.c.name }}</td>
+      <td>{{ row.store.name if row.store }}</td>
+      <td class="muted">{{ row.c.package_title }}</td>
+      <td>¥{{ row.c.price|yuan }}</td>
+      <td><span class="k-tag {{ 'on' if row.c.status=='running' else ('off' if row.c.status=='rejected' else ('warn' if row.c.status=='pending' else '')) }}">{{ status_label.get(row.c.status, row.c.status) }}</span></td>
+      <td><a class="k-tag" href="/admin/campaigns/{{ row.c.id }}">{{ '审核' if row.c.status=='pending' else '查看' }}</a></td>
     </tr>
     {% endfor %}
   </table>

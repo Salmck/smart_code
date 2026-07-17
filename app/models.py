@@ -21,6 +21,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.orm import relationship
 
 from .db import Base
 
@@ -55,11 +56,19 @@ class ActionResult:      # 增长动作·实验结果（与执行状态分开）
 
 
 class CampaignStatus:
-    DRAFT = "draft"
-    RUNNING = "running"
+    DRAFT = "draft"          # 草稿（老板编辑中）
+    PENDING = "pending"      # 待审核（老板已提交，等管理员审核）
+    REJECTED = "rejected"    # 已驳回
+    RUNNING = "running"      # 进行中（审核通过并生效）
     PAUSED = "paused"
     ENDED = "ended"
     ARCHIVED = "archived"
+
+
+CAMPAIGN_STATUS_LABEL = {
+    "draft": "草稿", "pending": "待审核", "rejected": "已驳回",
+    "running": "进行中", "paused": "已暂停", "ended": "已结束", "archived": "已归档",
+}
 
 
 class QRStatus:
@@ -175,13 +184,15 @@ class GrowthAction(Base):
     created_at = Column(DateTime, default=now_utc)
 
 
-class Campaign(Base):
-    """活动 = 活动规则 + 套餐（第一版一活动一套餐，见 README 限制说明）。"""
-    __tablename__ = "campaigns"
+class Package(Base):
+    """套餐（由门店老板管理）。绑定一个增长策略，承载套餐内容与价格。
+
+    一个套餐可被多个活动复用；活动只引用套餐、不重复编辑套餐内容。
+    """
+    __tablename__ = "packages"
     id = Column(Integer, primary_key=True)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
     growth_action_id = Column(Integer, ForeignKey("growth_actions.id"), nullable=False)
-    name = Column(String(128), nullable=False)
     package_title = Column(String(128), default="")    # 套餐标题
     package_desc = Column(Text, default="")            # 套餐介绍
     package_content = Column(Text, default="")         # 套餐包含内容
@@ -190,21 +201,77 @@ class Campaign(Base):
     people = Column(String(32), default="")            # 适用人数（文本，如 6-8人）
     original_price = Column(Float, default=0)          # 原价
     price = Column(Float, default=0)                   # 活动价
+    usage_rules = Column(Text, default="")             # 使用规则
+    extra = Column(JSON, default=dict)                 # 行业特有字段（如是否包间）
+    created_at = Column(DateTime, default=now_utc)
+
+
+class Campaign(Base):
+    """活动（由门店老板创建、管理员审核）。引用一个套餐 + 活动级规则 + 审核状态。"""
+    __tablename__ = "campaigns"
+    id = Column(Integer, primary_key=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
+    package_id = Column(Integer, ForeignKey("packages.id"), nullable=False)
+    growth_action_id = Column(Integer, ForeignKey("growth_actions.id"), nullable=False)  # 冗余便于归因
+    name = Column(String(128), nullable=False)
     stock = Column(Integer, default=0)                 # 库存总量
     claimed = Column(Integer, default=0)               # 已领取/已占用数量
     per_person_limit = Column(Integer, default=1)      # 每人领取限制
     need_reservation = Column(Boolean, default=False)  # 是否需要预约（决定唯一入口）
-    usage_rules = Column(Text, default="")             # 使用规则
     reservable_dates = Column(JSON, default=list)      # 可预约日期
     reservable_times = Column(JSON, default=list)      # 可预约时间段
     voucher_valid_days = Column(Integer, default=14)   # 凭证有效期（领取后 N 天）
     starts_at = Column(DateTime, nullable=True)
     ends_at = Column(DateTime, nullable=True)
     status = Column(String(16), default=CampaignStatus.DRAFT)
-    extra = Column(JSON, default=dict)                 # 行业特有字段（如是否包间）
+    reject_reason = Column(String(256), default="")    # 审核驳回原因
+    reviewed_by = Column(Integer, nullable=True)       # 审核人 user_id
     ref_image = Column(String(256), default="")        # 参考图（海报）文件名
     ref_qr_box = Column(JSON, nullable=True)           # 识别到的二维码区域 [x,y,w,h]
     created_at = Column(DateTime, default=now_utc)
+
+    package = relationship("Package", lazy="joined")
+
+    # ---- 代理属性：让顾客端模板/服务沿用 campaign.价格/套餐字段，无需改动 ----
+    @property
+    def package_title(self):
+        return self.package.package_title if self.package else ""
+
+    @property
+    def package_desc(self):
+        return self.package.package_desc if self.package else ""
+
+    @property
+    def package_content(self):
+        return self.package.package_content if self.package else ""
+
+    @property
+    def main_image(self):
+        return self.package.main_image if self.package else ""
+
+    @property
+    def detail_images(self):
+        return self.package.detail_images if self.package else []
+
+    @property
+    def people(self):
+        return self.package.people if self.package else ""
+
+    @property
+    def original_price(self):
+        return self.package.original_price if self.package else 0
+
+    @property
+    def price(self):
+        return self.package.price if self.package else 0
+
+    @property
+    def usage_rules(self):
+        return self.package.usage_rules if self.package else ""
+
+    @property
+    def extra(self):
+        return self.package.extra if self.package else {}
 
 
 class QRPlacement(Base):

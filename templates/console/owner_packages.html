@@ -1,0 +1,86 @@
+{% extends "base_console.html" %}
+{% block title %}套餐管理{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active='packages' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">套餐管理</h1>
+<div class="muted" style="margin-bottom:14px">套餐先绑定管理员下发的增长策略，再据策略安排编辑套餐内容。</div>
+
+<div class="k-card">
+  <div class="card-h">新建套餐</div>
+  {% if not actions %}
+    <div class="k-tag warn">暂无可用增长策略，请等待管理员下发</div>
+  {% else %}
+  <form method="post" action="/owner/packages">
+    <!-- 第一步：选增长策略（在最前面）-->
+    <div class="form-row">
+      <div style="grid-column:1/3">
+        <label>① 选择增长策略 *</label>
+        <select class="k-select" name="growth_action_id" id="strategy-select" required onchange="loadStrategy()">
+          <option value="">— 请选择策略 —</option>
+          {% for a in actions %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <!-- 策略详情：辅助套餐编辑 -->
+    <div class="strategy-hint" id="strategy-hint" style="display:none">
+      <div class="card-h" style="font-size:13px;margin-bottom:8px">📋 策略安排（据此设计套餐）</div>
+      <div class="hint-grid" id="hint-body"></div>
+    </div>
+
+    <!-- 第二步：套餐内容 -->
+    <div class="form-row" style="margin-top:14px">
+      <div><label>② 套餐标题 *</label><input class="k-input" name="package_title" required></div>
+      <div><label>适用人数 *</label><input class="k-input" name="people" placeholder="6-8人" required></div>
+    </div>
+    <div class="form-row">
+      <div style="grid-column:1/3"><label>套餐内容 *</label><input class="k-input" name="package_content" required placeholder="胖头鱼一条 · 红烧肉 · 时蔬2份 · 主食 · 例汤"></div>
+    </div>
+    <div class="form-row">
+      <div><label>原价</label><input class="k-input" name="original_price" type="number" min="0" value="0"></div>
+      <div><label>活动价 *</label><input class="k-input" name="price" type="number" min="0.01" step="0.01" required></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:8px">
+        <label style="display:flex;align-items:center;gap:6px;color:#cdd5ee">
+          <input type="checkbox" name="supports_room" style="width:auto"> 支持包间</label>
+      </div>
+    </div>
+    <div><label class="muted">套餐介绍</label><input class="k-input" name="package_desc" style="margin-top:4px"></div>
+    <div style="margin-top:10px"><label class="muted">使用规则</label><input class="k-input" name="usage_rules" style="margin-top:4px" placeholder="每桌限用一张；需提前预约…"></div>
+    <button class="k-btn" style="margin-top:14px">创建套餐</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="k-card">
+  <div class="card-h">已有套餐</div>
+  <table class="k-table">
+    <tr><th>套餐</th><th>价格</th><th>关联策略</th><th>人数</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.p.package_title }}</td>
+      <td>¥{{ row.p.price|yuan }} <span class="muted">/{{ row.p.original_price|yuan }}</span></td>
+      <td class="muted">{{ row.action.name if row.action }}</td>
+      <td>{{ row.p.people }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<script>
+async function loadStrategy() {
+  const id = document.getElementById('strategy-select').value;
+  const hint = document.getElementById('strategy-hint');
+  if (!id) { hint.style.display = 'none'; return; }
+  const d = await (await fetch('/owner/packages/strategy/' + id)).json();
+  const metric = {scan:'独立扫码', reserve:'预约人数', redeem:'核销人数'}[d.success_metric] || d.success_metric;
+  document.getElementById('hint-body').innerHTML = `
+    <div><span>核心假设</span><b>${d.hypothesis||'-'}</b></div>
+    <div><span>目标顾客</span><b>${d.target_customer||'-'}</b></div>
+    <div><span>消费场景</span><b>${d.target_scene||'-'}</b></div>
+    <div><span>成功指标</span><b>${metric} ≥ ${d.success_threshold}</b></div>
+    <div><span>最低样本</span><b>${d.min_sample} 独立扫码</b></div>
+    <div><span>观察周期</span><b>${d.observe_days} 天</b></div>`;
+  hint.style.display = 'block';
+}
+</script>
+{% endblock %}

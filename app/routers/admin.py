@@ -8,6 +8,7 @@ from ..audit import audit
 from ..db import get_db
 from ..deps import AuthUser, require_admin
 from ..models import (
+    CAMPAIGN_STATUS_LABEL,
     ActionStatus,
     AuditLog,
     Campaign,
@@ -16,7 +17,6 @@ from ..models import (
     QRPlacement,
     Store,
     Voucher,
-    CHANNELS,
     now_utc,
 )
 from ..render import templates
@@ -121,46 +121,83 @@ def action_detail(action_id: int, request: Request,
          "campaigns": campaigns, "qrs": qrs, "ev": ev})
 
 
+@router.post("/actions/{action_id}/edit")
+def edit_action(action_id: int, user: AuthUser = Depends(require_admin), db=Depends(get_db),
+                name: str = Form(...), hypothesis: str = Form(""),
+                target_customer: str = Form(""), target_scene: str = Form(""),
+                success_metric: str = Form("redeem"), success_threshold: int = Form(0),
+                min_sample: int = Form(0), observe_days: int = Form(14)):
+    """管理员编辑增长策略并下发（更新即对该门店老板生效）。"""
+    action = db.get(GrowthAction, action_id)
+    if not action:
+        raise HTTPException(status_code=404, detail="增长动作不存在")
+    catalog_service.update_growth_action(
+        db, action, name=sanitize_text(name, 128), hypothesis=sanitize_text(hypothesis),
+        target_customer=sanitize_text(target_customer, 128),
+        target_scene=sanitize_text(target_scene, 128), success_metric=success_metric,
+        success_threshold=int(success_threshold), min_sample=int(min_sample),
+        observe_days=int(observe_days))
+    audit(db, user_id=user.id, role=user.role, store_id=action.store_id,
+          action="edit_action", target=f"action:{action.id}", after={"name": action.name})
+    return RedirectResponse(f"/admin/actions/{action.id}", status_code=302)
+
+
 # ---------- 活动 ----------
 @router.get("/campaigns")
 def campaigns_page(request: Request, user: AuthUser = Depends(require_admin), db=Depends(get_db)):
     campaigns = db.query(Campaign).order_by(Campaign.created_at.desc()).all()
-    actions = db.query(GrowthAction).all()
+    # 待审核置顶
+    order = {CampaignStatus.PENDING: 0, CampaignStatus.REJECTED: 1}
+    campaigns.sort(key=lambda c: order.get(c.status, 2))
     rows = [{"c": c, "store": db.get(Store, c.store_id)} for c in campaigns]
+    pending = sum(1 for c in campaigns if c.status == CampaignStatus.PENDING)
     return templates.TemplateResponse(
         "console/admin_campaigns.html",
-        {"request": request, "user": user, "rows": rows, "actions": actions})
+        {"request": request, "user": user, "rows": rows, "pending": pending,
+         "status_label": CAMPAIGN_STATUS_LABEL})
 
 
-@router.post("/campaigns")
-def create_campaign(user: AuthUser = Depends(require_admin), db=Depends(get_db),
-                    growth_action_id: int = Form(...), name: str = Form(...),
-                    package_title: str = Form(""), package_desc: str = Form(""),
-                    package_content: str = Form(""), people: str = Form(""),
-                    original_price: float = Form(0), price: float = Form(0),
-                    stock: int = Form(0), per_person_limit: int = Form(1),
-                    need_reservation: str = Form(""), usage_rules: str = Form(""),
-                    voucher_valid_days: int = Form(14)):
-    action = db.get(GrowthAction, int(growth_action_id))
-    if not action:
-        raise HTTPException(status_code=404, detail="增长动作不存在")
-    if not package_title.strip():
-        return JSONResponse({"detail": "套餐标题必填"}, status_code=400)
-    if float(price) <= 0:
-        return JSONResponse({"detail": "活动价必须大于 0"}, status_code=400)
-    if int(stock) <= 0:
-        return JSONResponse({"detail": "库存必须大于 0"}, status_code=400)
-    c = catalog_service.create_campaign(
-        db, store_id=action.store_id, growth_action_id=action.id,
-        name=sanitize_text(name, 128), package_title=sanitize_text(package_title, 128),
-        package_desc=sanitize_text(package_desc), package_content=sanitize_text(package_content),
-        people=people, original_price=float(original_price), price=float(price),
-        stock=int(stock), per_person_limit=int(per_person_limit),
-        need_reservation=bool(need_reservation), usage_rules=sanitize_text(usage_rules),
-        voucher_valid_days=int(voucher_valid_days), status=CampaignStatus.RUNNING,
-        starts_at=now_utc())
-    audit(db, user_id=user.id, role=user.role, store_id=c.store_id,
-          action="create_campaign", target=f"campaign:{c.id}", after={"name": c.name})
+@router.get("/campaigns/{campaign_id}")
+def campaign_review(campaign_id: int, request: Request,
+                    user: AuthUser = Depends(require_admin), db=Depends(get_db)):
+    """审核详情：同时展示活动规则与套餐内容、关联增长策略。"""
+    c = db.get(Campaign, campaign_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    return templates.TemplateResponse(
+        "console/admin_campaign_review.html",
+        {"request": request, "user": user, "c": c, "package": c.package,
+         "store": db.get(Store, c.store_id),
+         "action": db.get(GrowthAction, c.growth_action_id),
+         "status_label": CAMPAIGN_STATUS_LABEL})
+
+
+@router.post("/campaigns/{campaign_id}/approve")
+def approve(campaign_id: int, user: AuthUser = Depends(require_admin), db=Depends(get_db)):
+    c = db.get(Campaign, campaign_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    try:
+        n = catalog_service.approve_campaign(db, c, user.id)
+    except Exception as e:
+        return JSONResponse({"detail": f"无法通过：{e}"}, status_code=400)
+    audit(db, user_id=user.id, role=user.role, store_id=c.store_id, action="approve_campaign",
+          target=f"campaign:{c.id}", after={"qrs_created": n})
+    return RedirectResponse("/admin/campaigns", status_code=302)
+
+
+@router.post("/campaigns/{campaign_id}/reject")
+def reject(campaign_id: int, user: AuthUser = Depends(require_admin), db=Depends(get_db),
+           reason: str = Form("")):
+    c = db.get(Campaign, campaign_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    try:
+        catalog_service.reject_campaign(db, c, user.id, sanitize_text(reason, 256))
+    except Exception as e:
+        return JSONResponse({"detail": f"无法驳回：{e}"}, status_code=400)
+    audit(db, user_id=user.id, role=user.role, store_id=c.store_id, action="reject_campaign",
+          target=f"campaign:{c.id}", after={"reason": reason})
     return RedirectResponse("/admin/campaigns", status_code=302)
 
 
@@ -171,22 +208,11 @@ def qrs_page(request: Request, user: AuthUser = Depends(require_admin), db=Depen
     groups = []
     for c in campaigns:
         qrs = db.query(QRPlacement).filter_by(campaign_id=c.id).all()
-        groups.append({"campaign": c, "store": db.get(Store, c.store_id), "qrs": qrs})
+        if qrs:  # 审核通过后才有二维码
+            groups.append({"campaign": c, "store": db.get(Store, c.store_id), "qrs": qrs})
     return templates.TemplateResponse(
         "console/admin_qrs.html",
         {"request": request, "user": user, "groups": groups})
-
-
-@router.post("/qrs/generate")
-def generate_qrs(user: AuthUser = Depends(require_admin), db=Depends(get_db),
-                 campaign_id: int = Form(...)):
-    campaign = db.get(Campaign, int(campaign_id))
-    if not campaign:
-        raise HTTPException(status_code=404, detail="活动不存在")
-    n = catalog_service.generate_all_platform_qrs(db, campaign)
-    audit(db, user_id=user.id, role=user.role, store_id=campaign.store_id,
-          action="generate_qrs", target=f"campaign:{campaign.id}", after={"created": n})
-    return RedirectResponse("/admin/qrs", status_code=302)
 
 
 @router.post("/qrs/reference")

@@ -12,9 +12,12 @@ from ..audit import audit
 from ..db import get_db
 from ..deps import AuthUser, require_owner
 from ..models import (
+    CAMPAIGN_STATUS_LABEL,
     Campaign,
     CampaignStatus,
     Customer,
+    GrowthAction,
+    Package,
     QRPlacement,
     Redemption,
     Reservation,
@@ -27,7 +30,7 @@ from ..models import (
 )
 from ..render import templates
 from ..security import hash_password
-from ..services import claim_service
+from ..services import catalog_service, claim_service
 from ..services.catalog_service import set_campaign_status
 from ..services.stats_service import breakdown_by, funnel
 from ..statemachine import RESERVATION_TRANSITIONS, transition
@@ -53,12 +56,107 @@ def dashboard(request: Request, user: AuthUser = Depends(require_owner), db=Depe
         {"request": request, "user": user, "store": store, "f": f, "channels": channels})
 
 
+# ---------- 套餐管理（选增长策略，显示策略详情辅助编辑）----------
+@router.get("/packages")
+def packages(request: Request, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
+    sid = _sid(user)
+    plist = db.query(Package).filter_by(store_id=sid).order_by(Package.created_at.desc()).all()
+    # 下发到本店的增长策略（管理员创建）
+    actions = db.query(GrowthAction).filter_by(store_id=sid).all()
+    rows = [{"p": p, "action": db.get(GrowthAction, p.growth_action_id)} for p in plist]
+    return templates.TemplateResponse(
+        "console/owner_packages.html",
+        {"request": request, "user": user, "rows": rows, "actions": actions})
+
+
+@router.get("/packages/strategy/{action_id}")
+def strategy_detail(action_id: int, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
+    """返回增长策略详情 JSON，供套餐编辑页展示辅助信息。"""
+    sid = _sid(user)
+    a = db.get(GrowthAction, action_id)
+    if not a or a.store_id != sid:
+        raise HTTPException(status_code=404, detail="策略不存在")
+    return {
+        "name": a.name, "hypothesis": a.hypothesis, "target_customer": a.target_customer,
+        "target_scene": a.target_scene, "problem_type": a.problem_type,
+        "success_metric": a.success_metric, "success_threshold": a.success_threshold,
+        "min_sample": a.min_sample, "observe_days": a.observe_days,
+    }
+
+
+@router.post("/packages")
+def create_package(user: AuthUser = Depends(require_owner), db=Depends(get_db),
+                   growth_action_id: int = Form(...), package_title: str = Form(...),
+                   package_content: str = Form(...), people: str = Form(""),
+                   original_price: float = Form(0), price: float = Form(...),
+                   package_desc: str = Form(""), usage_rules: str = Form(""),
+                   supports_room: str = Form("")):
+    sid = _sid(user)
+    a = db.get(GrowthAction, int(growth_action_id))
+    if not a or a.store_id != sid:
+        raise HTTPException(status_code=404, detail="请选择本店的增长策略")
+    if float(price) <= 0:
+        return JSONResponse({"detail": "活动价必须大于 0"}, status_code=400)
+    p = catalog_service.create_package(
+        db, store_id=sid, growth_action_id=a.id,
+        package_title=sanitize_text(package_title, 128),
+        package_content=sanitize_text(package_content), people=people,
+        original_price=float(original_price), price=float(price),
+        package_desc=sanitize_text(package_desc), usage_rules=sanitize_text(usage_rules),
+        extra={"supports_room": bool(supports_room)})
+    audit(db, user_id=user.id, role=user.role, store_id=sid, action="create_package",
+          target=f"package:{p.id}", after={"title": p.package_title})
+    return RedirectResponse("/owner/packages", status_code=302)
+
+
+# ---------- 活动管理（选套餐，不重复编辑套餐）----------
 @router.get("/campaigns")
 def campaigns(request: Request, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
     sid = _sid(user)
     rows = db.query(Campaign).filter_by(store_id=sid).order_by(Campaign.created_at.desc()).all()
+    packages = db.query(Package).filter_by(store_id=sid).all()
     return templates.TemplateResponse(
-        "console/owner_campaigns.html", {"request": request, "user": user, "rows": rows})
+        "console/owner_campaigns.html",
+        {"request": request, "user": user, "rows": rows, "packages": packages,
+         "status_label": CAMPAIGN_STATUS_LABEL})
+
+
+@router.post("/campaigns")
+def create_campaign(user: AuthUser = Depends(require_owner), db=Depends(get_db),
+                    package_id: int = Form(...), name: str = Form(...),
+                    stock: int = Form(...), per_person_limit: int = Form(1),
+                    voucher_valid_days: int = Form(14), need_reservation: str = Form(""),
+                    reservable_times: str = Form("")):
+    sid = _sid(user)
+    if int(stock) <= 0:
+        return JSONResponse({"detail": "库存必须大于 0"}, status_code=400)
+    times = [t.strip() for t in reservable_times.split(",") if t.strip()]
+    try:
+        c = catalog_service.create_campaign(
+            db, store_id=sid, package_id=int(package_id), name=sanitize_text(name, 128),
+            stock=int(stock), per_person_limit=int(per_person_limit),
+            voucher_valid_days=int(voucher_valid_days),
+            need_reservation=bool(need_reservation), reservable_times=times)
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    audit(db, user_id=user.id, role=user.role, store_id=sid, action="create_campaign",
+          target=f"campaign:{c.id}", after={"name": c.name})
+    return RedirectResponse("/owner/campaigns", status_code=302)
+
+
+@router.post("/campaigns/{campaign_id}/submit")
+def submit_campaign(campaign_id: int, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
+    sid = _sid(user)
+    c = db.get(Campaign, campaign_id)
+    if not c or c.store_id != sid:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    try:
+        catalog_service.submit_campaign(db, c)
+    except Exception as e:
+        return JSONResponse({"detail": f"无法提交：{e}"}, status_code=400)
+    audit(db, user_id=user.id, role=user.role, store_id=sid, action="submit_campaign",
+          target=f"campaign:{c.id}")
+    return RedirectResponse("/owner/campaigns", status_code=302)
 
 
 @router.post("/campaigns/{campaign_id}/status")
@@ -83,8 +181,11 @@ def campaign_status(campaign_id: int, user: AuthUser = Depends(require_owner),
 def qrs(request: Request, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
     sid = _sid(user)
     campaigns = db.query(Campaign).filter_by(store_id=sid).order_by(Campaign.created_at.desc()).all()
-    groups = [{"campaign": c, "qrs": db.query(QRPlacement).filter_by(campaign_id=c.id).all()}
-              for c in campaigns]
+    groups = []
+    for c in campaigns:
+        qrs = db.query(QRPlacement).filter_by(campaign_id=c.id).all()
+        if qrs:  # 仅显示已审核通过（已生成二维码）的活动
+            groups.append({"campaign": c, "qrs": qrs})
     return templates.TemplateResponse(
         "console/owner_qrs.html", {"request": request, "user": user, "groups": groups})
 

@@ -24,7 +24,13 @@ RESERVATION_TRANSITIONS = {
 }
 
 CAMPAIGN_TRANSITIONS = {
-    (CampaignStatus.DRAFT, CampaignStatus.RUNNING),
+    # 审核流：草稿 → 待审核 → 通过(进行中)/驳回
+    (CampaignStatus.DRAFT, CampaignStatus.PENDING),
+    (CampaignStatus.PENDING, CampaignStatus.RUNNING),
+    (CampaignStatus.PENDING, CampaignStatus.REJECTED),
+    (CampaignStatus.REJECTED, CampaignStatus.PENDING),   # 老板改后重新提交
+    (CampaignStatus.REJECTED, CampaignStatus.DRAFT),
+    # 运营流
     (CampaignStatus.RUNNING, CampaignStatus.PAUSED),
     (CampaignStatus.PAUSED, CampaignStatus.RUNNING),
     (CampaignStatus.RUNNING, CampaignStatus.ENDED),

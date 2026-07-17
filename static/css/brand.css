@@ -140,6 +140,13 @@ table.k-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .qr-fold summary::before { content: "▸ "; }
 .qr-fold[open] summary::before { content: "▾ "; }
 .qr-fold .k-tag { margin: 2px 3px 2px 0; display: inline-block; }
+/* 增长策略提示面板（套餐编辑辅助）*/
+.strategy-hint { margin-top: 12px; padding: 14px; background: #141a30;
+  border: 1px solid #2a3350; border-radius: 10px; }
+.hint-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; }
+.hint-grid > div { display: flex; flex-direction: column; gap: 3px; }
+.hint-grid span { font-size: 11px; color: #8b95b3; }
+.hint-grid b { font-size: 13px; color: #e5e7eb; font-weight: 600; }
 
 /* 页面永不横向滚动；宽内容各自在容器内滚。用 clip 而非 hidden，避免破坏 sticky 顶栏 */
 html, body { max-width: 100%; overflow-x: clip; }

@@ -1,0 +1,64 @@
+{% extends "base_console.html" %}
+{% block title %}审核活动{% endblock %}
+{% block subtitle %}平台管理端 · 活动审核{% endblock %}
+{% block nav %}{% set active='campaigns' %}{% include "console/_nav_admin.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">{{ c.name }}
+  <span class="k-tag {{ 'on' if c.status=='running' else ('off' if c.status=='rejected' else ('warn' if c.status=='pending' else '')) }}" style="font-size:13px;margin-left:8px">{{ status_label.get(c.status, c.status) }}</span>
+</h1>
+<div class="muted" style="margin-bottom:14px">门店：{{ store.name if store }}</div>
+
+<!-- 活动规则 -->
+<div class="k-card">
+  <div class="card-h">活动规则</div>
+  <table class="k-table">
+    <tr><th>库存</th><td>{{ c.stock }}</td><th>每人限领/约</th><td>{{ c.per_person_limit }}</td></tr>
+    <tr><th>是否需预约</th><td>{{ '需要' if c.need_reservation else '无需' }}</td><th>凭证有效期</th><td>{{ c.voucher_valid_days }} 天</td></tr>
+    <tr><th>可预约时段</th><td colspan="3">{{ c.reservable_times|join('，') if c.reservable_times else '-' }}</td></tr>
+  </table>
+</div>
+
+<!-- 套餐内容 -->
+<div class="k-card">
+  <div class="card-h">套餐内容</div>
+  {% if package %}
+  <table class="k-table">
+    <tr><th>套餐标题</th><td colspan="3">{{ package.package_title }}</td></tr>
+    <tr><th>适用人数</th><td>{{ package.people }}</td><th>价格</th><td>¥{{ package.price|yuan }} <span class="muted">/{{ package.original_price|yuan }}</span></td></tr>
+    <tr><th>套餐内容</th><td colspan="3">{{ package.package_content }}</td></tr>
+    <tr><th>套餐介绍</th><td colspan="3">{{ package.package_desc or '-' }}</td></tr>
+    <tr><th>使用规则</th><td colspan="3">{{ package.usage_rules or '-' }}</td></tr>
+  </table>
+  {% else %}<div class="muted">套餐信息缺失</div>{% endif %}
+</div>
+
+<!-- 关联增长策略 -->
+<div class="k-card">
+  <div class="card-h">关联增长策略</div>
+  {% if action %}
+  <table class="k-table">
+    <tr><th>策略</th><td colspan="3">{{ action.name }}</td></tr>
+    <tr><th>核心假设</th><td colspan="3">{{ action.hypothesis }}</td></tr>
+    <tr><th>成功指标</th><td>{{ action.success_metric }} ≥ {{ action.success_threshold }}</td><th>最低样本</th><td>{{ action.min_sample }}</td></tr>
+  </table>
+  {% endif %}
+</div>
+
+<!-- 审核操作 -->
+{% if c.status == 'pending' %}
+<div class="k-card">
+  <div class="card-h">审核操作</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <form method="post" action="/admin/campaigns/{{ c.id }}/approve">
+      <button class="k-btn">✓ 通过并生成二维码</button></form>
+    <form method="post" action="/admin/campaigns/{{ c.id }}/reject" style="display:flex;gap:8px;align-items:center;flex:1;min-width:240px">
+      <input class="k-input" name="reason" placeholder="驳回原因" style="flex:1">
+      <button class="k-btn k-btn-danger">驳回</button></form>
+  </div>
+</div>
+{% elif c.status == 'rejected' and c.reject_reason %}
+<div class="k-card"><div class="card-h">驳回原因</div><div class="k-tag off">{{ c.reject_reason }}</div></div>
+{% endif %}
+
+<a class="k-tag" href="/admin/campaigns">← 返回审核列表</a>
+{% endblock %}

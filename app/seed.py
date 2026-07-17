@@ -11,6 +11,7 @@ from .models import (
     Campaign,
     CampaignStatus,
     GrowthAction,
+    Package,
     Role,
     Store,
     StoreMember,
@@ -65,18 +66,25 @@ def seed_all(db):
     db.add(action)
     db.flush()
 
-    # 活动（需预约，人工确认）
-    campaign = Campaign(
+    # 套餐（老板管理，绑定增长策略）
+    package = Package(
         store_id=store.id, growth_action_id=action.id,
-        name="太平湖胖头鱼家庭聚餐套餐", package_title="太平湖胖头鱼家庭聚餐套餐",
+        package_title="太平湖胖头鱼家庭聚餐套餐",
         package_desc="招牌太平湖胖头鱼 + 时令家常菜，适合 6-8 人周末家庭聚餐",
         package_content="太平湖胖头鱼一条(约3斤) · 招牌红烧肉 · 时蔬2份 · 主食 · 例汤 · 果盘",
-        people="6-8人", original_price=368, price=298, stock=50, claimed=0,
-        per_person_limit=1, need_reservation=True,
+        people="6-8人", original_price=368, price=298,
         usage_rules="每桌限用一张；节假日通用；需提前预约；不与其他优惠同享",
-        reservable_dates=[], reservable_times=["午市 11:00-14:00", "晚市 17:00-21:00"],
-        voucher_valid_days=14, starts_at=starts, status=CampaignStatus.RUNNING,
         extra={"supports_room": True})
+    db.add(package)
+    db.flush()
+
+    # 活动（引用套餐；演示数据直接置为已通过审核·进行中）
+    campaign = Campaign(
+        store_id=store.id, package_id=package.id, growth_action_id=action.id,
+        name="胖头鱼家庭聚餐·夏季场", stock=50, claimed=0, per_person_limit=1,
+        need_reservation=True, reservable_dates=[],
+        reservable_times=["午市 11:00-14:00", "晚市 17:00-21:00"],
+        voucher_valid_days=14, starts_at=starts, status=CampaignStatus.RUNNING)
     db.add(campaign)
     db.flush()
 

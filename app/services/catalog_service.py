@@ -1,8 +1,14 @@
-"""配置流程服务：门店 / 增长动作 / 活动 / 二维码投放的创建与管理。"""
+"""配置流程服务：门店 / 增长策略 / 套餐 / 活动 / 二维码 的创建与审核。
+
+角色分工：
+- 管理员：编辑增长策略并下发到门店；审核活动（不编辑活动/套餐）。
+- 老板：管理套餐（选增长策略）与活动（选套餐）；提交活动送审。
+"""
 from ..models import (
     Campaign,
     CampaignStatus,
     GrowthAction,
+    Package,
     QRPlacement,
     QRStatus,
     Store,
@@ -28,11 +34,74 @@ def create_growth_action(db, *, store_id, **fields) -> GrowthAction:
     return action
 
 
-def create_campaign(db, *, store_id, growth_action_id, **fields) -> Campaign:
-    c = Campaign(store_id=store_id, growth_action_id=growth_action_id, **fields)
+def update_growth_action(db, action: GrowthAction, **fields) -> GrowthAction:
+    for k, v in fields.items():
+        if hasattr(action, k):
+            setattr(action, k, v)
+    db.commit()
+    return action
+
+
+# ---------- 套餐（老板管理）----------
+def create_package(db, *, store_id, growth_action_id, **fields) -> Package:
+    p = Package(store_id=store_id, growth_action_id=growth_action_id, **fields)
+    db.add(p)
+    db.commit()
+    return p
+
+
+def update_package(db, package: Package, **fields) -> Package:
+    for k, v in fields.items():
+        if hasattr(package, k):
+            setattr(package, k, v)
+    db.commit()
+    return package
+
+
+# ---------- 活动（老板创建、管理员审核）----------
+def create_campaign(db, *, store_id, package_id, **fields) -> Campaign:
+    package = db.get(Package, package_id)
+    if not package or package.store_id != store_id:
+        raise ValueError("套餐不存在或不属于本门店")
+    c = Campaign(store_id=store_id, package_id=package_id,
+                 growth_action_id=package.growth_action_id,
+                 status=CampaignStatus.DRAFT, **fields)
     db.add(c)
     db.commit()
     return c
+
+
+def update_campaign(db, campaign: Campaign, **fields) -> Campaign:
+    for k, v in fields.items():
+        if hasattr(Campaign, k) and not isinstance(getattr(Campaign, k, None), property):
+            setattr(campaign, k, v)
+    db.commit()
+    return campaign
+
+
+def submit_campaign(db, campaign: Campaign):
+    """老板提交送审：草稿/驳回 → 待审核。"""
+    transition(campaign, CampaignStatus.PENDING, CAMPAIGN_TRANSITIONS)
+    campaign.reject_reason = ""
+    db.commit()
+
+
+def approve_campaign(db, campaign: Campaign, reviewer_id: int) -> int:
+    """管理员审核通过：待审核 → 进行中，并生成全部平台二维码。返回新建二维码数。"""
+    transition(campaign, CampaignStatus.RUNNING, CAMPAIGN_TRANSITIONS)
+    campaign.reviewed_by = reviewer_id
+    if not campaign.starts_at:
+        campaign.starts_at = now_utc()
+    n = generate_all_platform_qrs(db, campaign)  # 通过后二维码才出现在两端页面
+    db.commit()
+    return n
+
+
+def reject_campaign(db, campaign: Campaign, reviewer_id: int, reason: str):
+    transition(campaign, CampaignStatus.REJECTED, CAMPAIGN_TRANSITIONS)
+    campaign.reviewed_by = reviewer_id
+    campaign.reject_reason = reason
+    db.commit()
 
 
 def create_qr(db, *, store_id, growth_action_id, campaign_id, channel,
@@ -106,7 +175,8 @@ def campaign_is_open(campaign: Campaign) -> tuple[bool, str]:
         return False, "活动已暂停"
     if campaign.status in (CampaignStatus.ENDED, CampaignStatus.ARCHIVED):
         return False, "活动已结束"
-    if campaign.status == CampaignStatus.DRAFT:
+    if campaign.status in (CampaignStatus.DRAFT, CampaignStatus.PENDING,
+                           CampaignStatus.REJECTED):
         return False, "活动未开始"
     if campaign.starts_at and now < campaign.starts_at:
         return False, "活动尚未开始"

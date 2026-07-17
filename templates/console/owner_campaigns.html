@@ -3,26 +3,62 @@
 {% block subtitle %}门店端{% endblock %}
 {% block nav %}{% set active='campaigns' %}{% include "console/_nav_owner.html" %}{% endblock %}
 {% block content %}
-<h1 class="k-h1">本店活动</h1>
+<h1 class="k-h1">活动管理</h1>
+<div class="muted" style="margin-bottom:14px">活动直接选用已有套餐，无需重复编辑套餐内容；提交后由管理员审核，通过后自动生成二维码。</div>
+
 <div class="k-card">
+  <div class="card-h">新建活动</div>
+  {% if not packages %}
+    <div class="k-tag warn">请先到「套餐」页创建套餐</div>
+  {% else %}
+  <form method="post" action="/owner/campaigns">
+    <div class="form-row">
+      <div><label>选择套餐 *</label><select class="k-select" name="package_id" required>
+        {% for p in packages %}<option value="{{ p.id }}">{{ p.package_title }}（¥{{ p.price|yuan }}）</option>{% endfor %}
+      </select></div>
+      <div><label>活动名称 *</label><input class="k-input" name="name" required placeholder="如：夏季家庭聚餐场"></div>
+    </div>
+    <div class="form-row">
+      <div><label>库存 *</label><input class="k-input" name="stock" type="number" min="1" value="50" required></div>
+      <div><label>每人限领/约</label><input class="k-input" name="per_person_limit" type="number" min="1" value="1"></div>
+      <div><label>凭证有效期(天)</label><input class="k-input" name="voucher_valid_days" type="number" min="1" value="14"></div>
+      <div><label>是否需预约</label><select class="k-select" name="need_reservation">
+        <option value="1">需要预约</option><option value="">无需预约</option></select></div>
+    </div>
+    <div><label class="muted">可预约时间段（逗号分隔）</label>
+      <input class="k-input" name="reservable_times" style="margin-top:4px" placeholder="午市 11:00-14:00, 晚市 17:00-21:00"></div>
+    <button class="k-btn" style="margin-top:14px">保存为草稿</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="k-card">
+  <div class="card-h">本店活动</div>
   <table class="k-table">
-    <tr><th>活动</th><th>价格</th><th>库存(已领/总)</th><th>状态</th><th>操作</th></tr>
+    <tr><th>活动</th><th>套餐</th><th>库存</th><th>状态</th><th>操作</th></tr>
     {% for c in rows %}
     <tr>
-      <td>{{ c.package_title or c.name }}</td>
-      <td>¥{{ c.price|yuan }}</td><td>{{ c.claimed }}/{{ c.stock }}</td>
-      <td><span class="k-tag">{{ c.status }}</span></td>
+      <td>{{ c.name }}</td>
+      <td class="muted">{{ c.package_title }}</td>
+      <td>{{ c.claimed }}/{{ c.stock }}</td>
+      <td>
+        <span class="k-tag {{ 'on' if c.status=='running' else ('off' if c.status=='rejected' else ('warn' if c.status in ['pending','paused'] else '')) }}">{{ status_label.get(c.status, c.status) }}</span>
+        {% if c.status=='rejected' and c.reject_reason %}<div class="muted" style="margin-top:3px">驳回：{{ c.reject_reason }}</div>{% endif %}
+      </td>
       <td style="white-space:nowrap">
+        {% if c.status in ['draft','rejected'] %}
+        <form method="post" action="/owner/campaigns/{{ c.id }}/submit">
+          <button class="k-btn k-btn-sm">提交审核</button></form>
+        {% endif %}
         {% if c.status=='running' %}
-        <form method="post" action="/owner/campaigns/{{ c.id }}/status" style="display:inline">
+        <form method="post" action="/owner/campaigns/{{ c.id }}/status">
           <input type="hidden" name="action" value="pause"><button class="k-btn k-btn-sm k-btn-ghost">暂停</button></form>
         {% elif c.status=='paused' %}
-        <form method="post" action="/owner/campaigns/{{ c.id }}/status" style="display:inline">
+        <form method="post" action="/owner/campaigns/{{ c.id }}/status">
           <input type="hidden" name="action" value="resume"><button class="k-btn k-btn-sm">恢复</button></form>
         {% endif %}
         {% if c.status in ['running','paused'] %}
-        <form method="post" action="/owner/campaigns/{{ c.id }}/status" style="display:inline"
-              onsubmit="return confirm('确认结束该活动？')">
+        <form method="post" action="/owner/campaigns/{{ c.id }}/status" onsubmit="return confirm('确认结束该活动？')">
           <input type="hidden" name="action" value="end"><button class="k-btn k-btn-sm k-btn-danger">结束</button></form>
         {% endif %}
       </td>
