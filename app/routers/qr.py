@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 
+from ..config import settings
 from ..db import get_db
 from ..deps import AuthUser, assert_store_access, require_staff
 from ..models import QRPlacement
@@ -18,7 +19,9 @@ def download(qr_id: int, fmt: str, request: Request,
         raise HTTPException(status_code=404, detail="二维码不存在")
     assert_store_access(user, qr.store_id)
 
-    url = qr_url(str(request.base_url), qr.short_code)
+    # 优先用配置的公网地址（隧道/域名），否则回退到请求 Host
+    base = settings.PUBLIC_BASE_URL or str(request.base_url)
+    url = qr_url(base, qr.short_code)
     fname = f"ordinex_{qr.short_code}"
 
     if fmt == "svg":

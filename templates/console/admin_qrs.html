@@ -38,9 +38,16 @@
         <a class="k-tag" href="/qr/{{ row.qr.id }}/transparent">透明</a>
         <a class="k-tag" href="/qr/{{ row.qr.id }}/caption">文字版</a>
         <a class="k-tag" href="/q/{{ row.qr.short_code }}" target="_blank">预览</a>
+        <button class="k-tag" style="border:none;cursor:pointer" onclick="copyLink('{{ row.qr.short_code }}')">复制短链</button>
       </td>
     </tr>
     {% endfor %}
   </table>
 </div>
+<script>
+function copyLink(code) {
+  const base = "{{ PUBLIC_BASE_URL }}" || location.origin;
+  navigator.clipboard.writeText(base + "/q/" + code).then(() => alert("已复制：" + base + "/q/" + code));
+}
+</script>
 {% endblock %}

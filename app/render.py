@@ -1,6 +1,7 @@
 """共享的 Jinja2 模板环境（含自定义过滤器）。"""
 from fastapi.templating import Jinja2Templates
 
+from .config import settings
 from .utils import mask_phone
 
 templates = Jinja2Templates(directory="templates")
@@ -38,4 +39,5 @@ templates.env.globals.update(
     BRAND_CN="无界序",
     BRAND_EN="Ordinex",
     PRODUCT_NAME="Ordinex 专属增长码",
+    PUBLIC_BASE_URL=settings.PUBLIC_BASE_URL,
 )

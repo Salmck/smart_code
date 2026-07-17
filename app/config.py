@@ -43,6 +43,11 @@ class Settings:
     # ---- 短码 ----
     SHORTCODE_LENGTH: int = 8                # 二维码随机短码长度
 
+    # ---- 对外访问地址 ----
+    # 设为公网地址（如 cloudflared 隧道 https://xxx.trycloudflare.com）后，
+    # 生成的二维码会指向此地址而非 localhost，手机扫码才能打开。留空则用请求 Host。
+    PUBLIC_BASE_URL: str = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
+
     # ---- 登录凭证 JWT ----
     JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-secret-change-me-in-production")
     JWT_ALG: str = "HS256"
