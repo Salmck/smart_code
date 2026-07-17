@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+ordinex.db
+ordinex.db-*
+*.db-wal
+*.db-shm
+data/
+.env
+scripts/
