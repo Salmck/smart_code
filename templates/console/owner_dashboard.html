@@ -1,0 +1,8 @@
+{% extends "base_console.html" %}
+{% block title %}数据首页{% endblock %}
+{% block subtitle %}{{ store.name }}{% endblock %}
+{% block nav %}{% set active='home' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">{{ store.name }} · 数据首页</h1>
+{% include "console/_funnel.html" %}
+{% endblock %}

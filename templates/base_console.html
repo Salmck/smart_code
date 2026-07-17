@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ PRODUCT_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/brand.css" />
+</head>
+<body class="k-body">
+  <div class="k-top">
+    <span class="k-logo">{{ BRAND_EN }} 无界序</span>
+    <span class="muted">{% block subtitle %}{% endblock %}</span>
+    <span class="sp"></span>
+    {% if user %}<span class="muted">{{ user.role }}</span>{% endif %}
+    <a href="/logout" class="k-tag" style="text-decoration:none">退出</a>
+  </div>
+  {% block nav %}{% endblock %}
+  <div class="k-main">
+    {% block content %}{% endblock %}
+  </div>
+  {% block script %}{% endblock %}
+</body>
+</html>

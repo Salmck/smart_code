@@ -1,0 +1,36 @@
+{% extends "base_console.html" %}
+{% block title %}预约管理{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active='reservations' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">预约管理</h1>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>创建</th><th>预约人</th><th>手机</th><th>到店</th><th>人数</th><th>状态</th><th>操作</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.r.created_at|dt('%m-%d %H:%M') }}</td>
+      <td>{{ row.r.name }}</td>
+      <td>{{ row.customer.phone|mask_phone if row.customer }}</td>
+      <td>{{ row.r.date }} {{ row.r.time }}</td>
+      <td>{{ row.r.people }}{{ ' 包间' if row.r.need_room else '' }}</td>
+      <td><span class="k-tag {{ 'warn' if row.r.status=='pending' }}">{{ row.r.status }}</span></td>
+      <td style="white-space:nowrap">
+        {% if row.r.status=='pending' %}
+        <form method="post" action="/owner/reservations/{{ row.r.id }}/action" style="display:inline">
+          <input type="hidden" name="op" value="confirm"><button class="k-btn k-btn-sm">确认</button></form>
+        {% endif %}
+        {% if row.r.status in ['pending','confirmed'] %}
+        <form method="post" action="/owner/reservations/{{ row.r.id }}/action" style="display:inline">
+          <input type="hidden" name="op" value="cancel"><button class="k-btn k-btn-sm k-btn-danger">取消</button></form>
+        {% endif %}
+        {% if row.r.status=='confirmed' %}
+        <form method="post" action="/owner/reservations/{{ row.r.id }}/action" style="display:inline">
+          <input type="hidden" name="op" value="no_show"><button class="k-btn k-btn-sm k-btn-ghost">未到店</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

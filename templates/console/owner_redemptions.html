@@ -1,0 +1,19 @@
+{% extends "base_console.html" %}
+{% block title %}核销记录{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active='redemptions' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">核销记录
+  <a class="k-btn k-btn-sm" href="/owner/export/redemptions" style="float:right">导出 CSV</a></h1>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>核销时间</th><th>凭证ID</th><th>核销店员</th><th>金额</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.rec.created_at|dt }}</td><td>{{ row.rec.voucher_id }}</td>
+      <td>{{ row.staff }}</td><td>¥{{ row.rec.amount|yuan }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base_console.html" %}
+{% block title %}{{ action.name }}{% endblock %}
+{% block subtitle %}平台管理端 · 策略效果{% endblock %}
+{% block nav %}{% set active='actions' %}{% include "console/_nav_admin.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">{{ action.name }}
+  <span class="k-tag {{ 'on' if ev.result=='success' else ('off' if ev.result=='failed' else 'warn') }}" style="font-size:14px;margin-left:8px">
+    {% if ev.result=='success' %}✅ 验证成功{% elif ev.result=='failed' %}❌ 验证失败{% elif ev.result=='insufficient' %}⏳ 样本不足{% else %}⏳ 观察中{% endif %}
+  </span>
+</h1>
+
+<div class="k-card">
+  <div class="form-row">
+    <div><label>门店</label><div>{{ store.name }}</div></div>
+    <div><label>目标顾客</label><div>{{ action.target_customer }}</div></div>
+    <div><label>消费场景</label><div>{{ action.target_scene }}</div></div>
+  </div>
+  <div><label class="muted">核心假设</label><div style="margin-top:4px">{{ action.hypothesis }}</div></div>
+</div>
+
+<div class="k-card">
+  <div style="font-weight:600;margin-bottom:8px">系统结论</div>
+  <p style="line-height:1.8">{{ ev.conclusion }}</p>
+  <div class="muted">下一步建议：{{ ev.suggestion }}</div>
+  <table class="k-table" style="margin-top:12px">
+    <tr><th>成功指标</th><td>{{ ev.metric }}</td><th>指标当前值</th><td style="font-weight:700">{{ ev.metric_value }}</td></tr>
+    <tr><th>成功阈值</th><td>{{ ev.threshold }}</td><th>最低样本量</th><td>{{ ev.min_sample }}</td></tr>
+    <tr><th>独立扫码</th><td>{{ ev.unique_scan }}</td><th>观察期结束</th><td>{{ '是' if ev.observe_ended else '否' }}</td></tr>
+  </table>
+</div>
+
+{% set f = ev.funnel %}
+{% include "console/_funnel.html" %}
+
+<div class="k-card">
+  <div style="font-weight:600;margin-bottom:8px">关联二维码（{{ qrs|length }}）</div>
+  <table class="k-table">
+    <tr><th>名称</th><th>渠道</th><th>内容编号</th><th>短码</th></tr>
+    {% for q in qrs %}<tr><td>{{ q.name }}</td><td>{{ q.channel }}</td><td>{{ q.content_no }}</td><td>{{ q.short_code }}</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

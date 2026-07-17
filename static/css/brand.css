@@ -1,0 +1,104 @@
+/* Ordinex 无界序 —— 品牌样式
+   品牌色：#5B2CFF / #2176FF / #00D4FF / #FFFFFF
+   顾客端浅色底突出菜品与信任；经营端深色专业风。 */
+
+:root {
+  --brand-1: #5B2CFF;
+  --brand-2: #2176FF;
+  --brand-3: #00D4FF;
+  --brand-grad: linear-gradient(120deg, #5B2CFF, #2176FF 55%, #00D4FF);
+  --ok: #16a34a;
+  --warn: #d97706;
+  --err: #dc2626;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+a { color: inherit; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ================= 顾客端（浅色） ================= */
+.c-body {
+  background: #f3f4f6;
+  color: #1f2937;
+  min-height: 100vh;
+}
+.c-wrap { max-width: 480px; margin: 0 auto; padding-bottom: 90px; }
+.c-hero { width: 100%; aspect-ratio: 16/10; object-fit: cover; display: block; background: #e5e7eb; }
+.c-card { background: #fff; border-radius: var(--radius); margin: 12px; padding: 18px; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
+.c-title { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+.c-store { font-size: 13px; color: #6b7280; }
+.price-row { display: flex; align-items: baseline; gap: 10px; margin: 12px 0; }
+.price-now { font-size: 30px; font-weight: 800; color: var(--brand-1); }
+.price-now small { font-size: 15px; }
+.price-old { font-size: 15px; color: #9ca3af; text-decoration: line-through; }
+.badge { display: inline-block; background: rgba(91,44,255,.1); color: var(--brand-1); font-size: 12px; padding: 3px 10px; border-radius: 20px; }
+.kv { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f1f1f4; font-size: 14px; }
+.kv:last-child { border-bottom: none; }
+.kv .k { color: #6b7280; }
+.rules { font-size: 13px; color: #6b7280; line-height: 1.8; white-space: pre-line; }
+.trust { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.trust span { font-size: 12px; background: #f3f4f6; color: #4b5563; padding: 4px 10px; border-radius: 8px; }
+
+.cta-bar { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto;
+  background: #fff; border-top: 1px solid #eee; padding: 10px 12px; display: flex; gap: 10px; }
+.btn { border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 600; flex: 1; }
+.btn-primary { background: var(--brand-grad); color: #fff; }
+.btn-ghost { background: #eef2ff; color: var(--brand-1); flex: 0 0 auto; padding: 13px 16px; }
+.btn:disabled { opacity: .5; }
+
+.c-input { width: 100%; padding: 13px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 16px; margin-top: 8px; }
+.c-input:focus { outline: none; border-color: var(--brand-2); }
+.field-label { font-size: 13px; color: #6b7280; margin-top: 14px; display: block; }
+.msg { font-size: 13px; margin-top: 12px; min-height: 18px; text-align: center; }
+.msg.err { color: var(--err); } .msg.ok { color: var(--ok); }
+
+.qr-box { text-align: center; padding: 20px; }
+.qr-box img { width: 220px; height: 220px; }
+.backup { font-size: 15px; color: #374151; letter-spacing: 3px; margin-top: 10px; }
+.status-chip { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; }
+.st-usable { background: rgba(22,163,74,.12); color: var(--ok); }
+.st-redeemed { background: #f3f4f6; color: #6b7280; }
+.st-expired, .st-cancelled { background: rgba(220,38,38,.1); color: var(--err); }
+.st-pending { background: rgba(217,119,6,.12); color: var(--warn); }
+
+/* ================= 经营端（深色） ================= */
+.k-body { background: #0b1020; color: #e5e7eb; min-height: 100vh; }
+.k-top { background: #11162a; border-bottom: 1px solid #1f2740; padding: 12px 18px; display: flex;
+  align-items: center; gap: 14px; position: sticky; top: 0; z-index: 5; }
+.k-logo { font-weight: 800; background: var(--brand-grad); -webkit-background-clip: text;
+  background-clip: text; color: transparent; font-size: 17px; }
+.k-top .sp { flex: 1; }
+.k-nav { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 18px; background: #0d1226; }
+.k-nav a { font-size: 13px; color: #9aa4bf; padding: 6px 12px; border-radius: 8px; text-decoration: none; }
+.k-nav a:hover, .k-nav a.active { background: #1b2340; color: #fff; }
+.k-main { padding: 18px; max-width: 1100px; margin: 0 auto; }
+.k-h1 { font-size: 20px; margin: 0 0 16px; }
+.k-card { background: #11162a; border: 1px solid #1f2740; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.k-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat { background: #141a30; border: 1px solid #1f2740; border-radius: 12px; padding: 16px; }
+.stat .n { font-size: 26px; font-weight: 800; color: #fff; }
+.stat .n.brand { background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat .l { font-size: 12px; color: #8b95b3; margin-top: 4px; }
+table.k-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.k-table th, .k-table td { text-align: left; padding: 10px; border-bottom: 1px solid #1f2740; }
+.k-table th { color: #8b95b3; font-weight: 600; }
+.k-table tr:hover td { background: #141a30; }
+.k-input, .k-select { background: #0e142a; border: 1px solid #2a3350; color: #e5e7eb;
+  padding: 9px 11px; border-radius: 8px; font-size: 14px; width: 100%; }
+.k-btn { background: var(--brand-grad); color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 14px; }
+.k-btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+.k-btn-ghost { background: #1b2340; color: #cdd5ee; }
+.k-btn-danger { background: rgba(220,38,38,.15); color: #fca5a5; }
+.k-tag { font-size: 11px; padding: 2px 9px; border-radius: 10px; background: #1b2340; color: #9aa4bf; }
+.k-tag.on { background: rgba(22,163,74,.18); color: #4ade80; }
+.k-tag.off { background: rgba(220,38,38,.15); color: #fca5a5; }
+.k-tag.warn { background: rgba(217,119,6,.18); color: #fbbf24; }
+.funnel-step { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+.funnel-bar { height: 30px; background: var(--brand-grad); border-radius: 6px; min-width: 3px; }
+.funnel-step .lbl { width: 130px; font-size: 13px; color: #b9c0d8; }
+.funnel-step .val { font-weight: 700; }
+.muted { color: #8b95b3; font-size: 12px; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 12px; margin-bottom: 12px; }
+.form-row label { font-size: 12px; color: #8b95b3; display: block; margin-bottom: 5px; }

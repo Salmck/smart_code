@@ -1,0 +1,33 @@
+{% extends "base_console.html" %}
+{% block title %}活动管理{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active='campaigns' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">本店活动</h1>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>活动</th><th>价格</th><th>库存(已领/总)</th><th>状态</th><th>操作</th></tr>
+    {% for c in rows %}
+    <tr>
+      <td>{{ c.package_title or c.name }}</td>
+      <td>¥{{ c.price|yuan }}</td><td>{{ c.claimed }}/{{ c.stock }}</td>
+      <td><span class="k-tag">{{ c.status }}</span></td>
+      <td style="white-space:nowrap">
+        {% if c.status=='running' %}
+        <form method="post" action="/owner/campaigns/{{ c.id }}/status" style="display:inline">
+          <input type="hidden" name="action" value="pause"><button class="k-btn k-btn-sm k-btn-ghost">暂停</button></form>
+        {% elif c.status=='paused' %}
+        <form method="post" action="/owner/campaigns/{{ c.id }}/status" style="display:inline">
+          <input type="hidden" name="action" value="resume"><button class="k-btn k-btn-sm">恢复</button></form>
+        {% endif %}
+        {% if c.status in ['running','paused'] %}
+        <form method="post" action="/owner/campaigns/{{ c.id }}/status" style="display:inline"
+              onsubmit="return confirm('确认结束该活动？')">
+          <input type="hidden" name="action" value="end"><button class="k-btn k-btn-sm k-btn-danger">结束</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

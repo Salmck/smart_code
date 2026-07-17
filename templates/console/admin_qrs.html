@@ -1,0 +1,46 @@
+{% extends "base_console.html" %}
+{% block title %}二维码管理{% endblock %}
+{% block subtitle %}平台管理端{% endblock %}
+{% block nav %}{% set active='qrs' %}{% include "console/_nav_admin.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">专属增长码</h1>
+<div class="k-card">
+  <div style="font-weight:600;margin-bottom:10px">生成二维码（不同渠道/内容不可共用同一码）</div>
+  <form method="post" action="/admin/qrs">
+    <div class="form-row">
+      <div><label>关联活动</label><select class="k-select" name="campaign_id" required>
+        {% for c in campaigns %}<option value="{{ c.id }}">{{ c.package_title or c.name }}</option>{% endfor %}</select></div>
+      <div><label>渠道</label><select class="k-select" name="channel" required>
+        {% for ch in channels %}<option>{{ ch }}</option>{% endfor %}</select></div>
+      <div><label>二维码名称</label><input class="k-input" name="name" placeholder="抖音视频01"></div>
+    </div>
+    <div class="form-row">
+      <div><label>内容编号</label><input class="k-input" name="content_no"></div>
+      <div><label>素材编号</label><input class="k-input" name="material_no"></div>
+      <div><label>投放说明</label><input class="k-input" name="note"></div>
+    </div>
+    <button class="k-btn">生成二维码</button>
+  </form>
+</div>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>名称</th><th>门店</th><th>活动</th><th>渠道</th><th>内容</th><th>短码</th><th>下载</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.qr.name }}</td><td>{{ row.store.name if row.store }}</td>
+      <td class="muted">{{ row.campaign.package_title if row.campaign }}</td>
+      <td><span class="k-tag">{{ row.qr.channel }}</span></td>
+      <td>{{ row.qr.content_no }}</td>
+      <td><code>{{ row.qr.short_code }}</code></td>
+      <td style="white-space:nowrap">
+        <a class="k-tag" href="/qr/{{ row.qr.id }}/png">PNG</a>
+        <a class="k-tag" href="/qr/{{ row.qr.id }}/svg">SVG</a>
+        <a class="k-tag" href="/qr/{{ row.qr.id }}/transparent">透明</a>
+        <a class="k-tag" href="/qr/{{ row.qr.id }}/caption">文字版</a>
+        <a class="k-tag" href="/q/{{ row.qr.short_code }}" target="_blank">预览</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

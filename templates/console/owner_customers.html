@@ -1,0 +1,19 @@
+{% extends "base_console.html" %}
+{% block title %}顾客列表{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active='customers' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">顾客列表 <span class="muted" style="font-size:13px">手机号默认脱敏</span></h1>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>顾客ID</th><th>姓名</th><th>手机号</th><th>首次访问</th><th>最近访问</th></tr>
+    {% for c in rows %}
+    <tr>
+      <td>{{ c.id }}</td><td>{{ c.name or '-' }}</td>
+      <td>{{ c.phone|mask_phone }}</td>
+      <td>{{ c.first_seen|dt }}</td><td>{{ c.last_seen|dt }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

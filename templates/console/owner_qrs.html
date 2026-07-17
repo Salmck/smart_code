@@ -1,0 +1,25 @@
+{% extends "base_console.html" %}
+{% block title %}二维码{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active='qrs' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">本店二维码</h1>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>名称</th><th>活动</th><th>渠道</th><th>内容</th><th>短码</th><th>下载</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.qr.name }}</td><td class="muted">{{ row.campaign.package_title if row.campaign }}</td>
+      <td><span class="k-tag">{{ row.qr.channel }}</span></td><td>{{ row.qr.content_no }}</td>
+      <td><code>{{ row.qr.short_code }}</code></td>
+      <td style="white-space:nowrap">
+        <a class="k-tag" href="/qr/{{ row.qr.id }}/png">PNG</a>
+        <a class="k-tag" href="/qr/{{ row.qr.id }}/svg">SVG</a>
+        <a class="k-tag" href="/qr/{{ row.qr.id }}/caption">文字版</a>
+        <a class="k-tag" href="/q/{{ row.qr.short_code }}" target="_blank">预览</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

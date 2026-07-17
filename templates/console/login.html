@@ -1,0 +1,32 @@
+{% extends "base_console.html" %}
+{% block title %}登录 · {{ PRODUCT_NAME }}{% endblock %}
+{% block content %}
+<div class="k-card" style="max-width:360px;margin:60px auto">
+  <div class="k-logo" style="font-size:22px;text-align:center;margin-bottom:6px">{{ BRAND_EN }} 无界序</div>
+  <div class="muted" style="text-align:center;margin-bottom:20px">{{ PRODUCT_NAME }} · 后台登录</div>
+  <label class="muted">用户名</label>
+  <input id="username" class="k-input" style="margin:6px 0 14px" placeholder="用户名" />
+  <label class="muted">密码</label>
+  <input id="password" class="k-input" type="password" style="margin:6px 0 18px" placeholder="密码" />
+  <button class="k-btn" id="login" style="width:100%">登 录</button>
+  <div class="msg" id="msg"></div>
+  <div class="muted" style="margin-top:18px;line-height:1.9;font-size:12px">
+    演示账号：<br>管理员 admin / admin123<br>老板 boss / boss123<br>店员 staff / staff123
+  </div>
+</div>
+{% endblock %}
+{% block script %}
+<script>
+document.getElementById("login").onclick = async () => {
+  const fd = new FormData();
+  fd.append("username", document.getElementById("username").value.trim());
+  fd.append("password", document.getElementById("password").value);
+  const r = await fetch("/api/staff/login", { method: "POST", body: fd });
+  const d = await r.json();
+  const m = document.getElementById("msg");
+  if (!r.ok) { m.textContent = d.detail; m.className = "msg err"; return; }
+  location.href = d.redirect;
+};
+document.getElementById("password").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("login").click(); });
+</script>
+{% endblock %}

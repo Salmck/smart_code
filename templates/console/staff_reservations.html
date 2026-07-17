@@ -1,0 +1,29 @@
+{% extends "base_console.html" %}
+{% block title %}今日预约{% endblock %}
+{% block subtitle %}核销端{% endblock %}
+{% block nav %}
+<div class="k-nav">
+  <a href="/staff">扫码核销</a>
+  <a href="/staff/reservations" class="active">今日预约</a>
+  <a href="/staff/records">我的核销</a>
+</div>
+{% endblock %}
+{% block content %}
+<h1 class="k-h1">今日预约 · {{ today }}</h1>
+<div class="k-card">
+  {% if not rows %}<div class="muted">今日暂无预约</div>{% else %}
+  <table class="k-table">
+    <tr><th>时间</th><th>预约人</th><th>人数</th><th>包间</th><th>状态</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.r.time }}</td>
+      <td>{{ row.r.name or (row.customer.phone|mask_phone if row.customer) }}</td>
+      <td>{{ row.r.people }}</td>
+      <td>{{ '是' if row.r.need_room else '-' }}</td>
+      <td><span class="k-tag">{{ row.r.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

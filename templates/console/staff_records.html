@@ -1,0 +1,28 @@
+{% extends "base_console.html" %}
+{% block title %}我的核销记录{% endblock %}
+{% block subtitle %}核销端{% endblock %}
+{% block nav %}
+<div class="k-nav">
+  <a href="/staff">扫码核销</a>
+  <a href="/staff/reservations">今日预约</a>
+  <a href="/staff/records" class="active">我的核销</a>
+</div>
+{% endblock %}
+{% block content %}
+<h1 class="k-h1">我的核销记录</h1>
+<div class="k-card">
+  {% if not rows %}<div class="muted">暂无核销记录</div>{% else %}
+  <table class="k-table">
+    <tr><th>核销时间</th><th>套餐</th><th>凭证编号</th><th>金额</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.rec.created_at|dt }}</td>
+      <td>{{ row.title }}</td>
+      <td>{{ row.voucher.code if row.voucher }}</td>
+      <td>¥{{ row.rec.amount|yuan }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base_customer.html" %}
+{% block title %}我的凭证{% endblock %}
+{% block content %}
+<div class="c-card" style="margin-top:16px"><h1 class="c-title">我的凭证</h1></div>
+{% if not rows %}
+<div class="c-card" style="text-align:center;color:#9ca3af;padding:40px">暂无凭证</div>
+{% endif %}
+{% for row in rows %}
+<a class="c-card" href="/v/{{ row.v.code }}" style="display:block;text-decoration:none">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-weight:700">{{ row.title }}</div>
+      <div class="c-store" style="margin-top:4px">编号 {{ row.v.code }} · 至 {{ row.v.expires_at|dt('%Y-%m-%d') }}</div>
+    </div>
+    <span class="status-chip st-{{ row.v.status }}">{{ row.label }}</span>
+  </div>
+</a>
+{% endfor %}
+{% endblock %}

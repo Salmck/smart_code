@@ -1,0 +1,20 @@
+{% extends "base_console.html" %}
+{% block title %}审计日志{% endblock %}
+{% block subtitle %}平台管理端{% endblock %}
+{% block nav %}{% set active='audit' %}{% include "console/_nav_admin.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">审计日志</h1>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>时间</th><th>操作人</th><th>角色</th><th>门店</th><th>操作</th><th>对象</th><th>变更</th></tr>
+    {% for log in logs %}
+    <tr>
+      <td>{{ log.created_at|dt }}</td><td>{{ log.user_id }}</td><td>{{ log.role }}</td>
+      <td>{{ log.store_id }}</td><td><span class="k-tag">{{ log.action }}</span></td>
+      <td>{{ log.target }}</td>
+      <td class="muted">{{ log.before }} → {{ log.after }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

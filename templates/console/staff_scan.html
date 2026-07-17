@@ -1,0 +1,124 @@
+{% extends "base_console.html" %}
+{% block title %}扫码核销{% endblock %}
+{% block subtitle %}核销端{% endblock %}
+{% block nav %}
+<div class="k-nav">
+  <a href="/staff" class="active">扫码核销</a>
+  <a href="/staff/reservations">今日预约</a>
+  <a href="/staff/records">我的核销</a>
+</div>
+{% endblock %}
+{% block content %}
+<div class="k-card" style="max-width:460px;margin:0 auto">
+  <h1 class="k-h1">扫码核销</h1>
+
+  <div id="reader" style="width:100%;border-radius:10px;overflow:hidden;background:#000;min-height:60px"></div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button class="k-btn" id="start-cam" style="flex:1">开启摄像头扫码</button>
+    <button class="k-btn k-btn-ghost" id="stop-cam" style="flex:0 0 auto;display:none">停止</button>
+  </div>
+
+  <div class="muted" style="text-align:center;margin:16px 0 8px">— 或 手动输入 —</div>
+  <input id="manual" class="k-input" placeholder="凭证编号 / 8位备用数字码" />
+  <input id="phone4" class="k-input" style="margin-top:8px" placeholder="顾客手机号后四位（备用码时选填）" maxlength="4" />
+  <button class="k-btn" id="query-btn" style="width:100%;margin-top:10px">查询凭证</button>
+  <div class="msg" id="msg"></div>
+</div>
+
+<!-- 查询结果确认卡（第二步） -->
+<div class="k-card" id="result-card" style="max-width:460px;margin:16px auto;display:none">
+  <h1 class="k-h1" id="r-title"></h1>
+  <div id="r-body"></div>
+  <button class="k-btn" id="confirm-btn" style="width:100%;margin-top:16px;font-size:16px;padding:14px;display:none">确 认 核 销</button>
+  <button class="k-btn k-btn-ghost" id="reset-btn" style="width:100%;margin-top:8px">重新扫码</button>
+  <div class="msg" id="r-msg"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="/static/vendor/html5-qrcode.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let pendingVoucherId = null;
+let requestId = null;
+let scanner = null;
+
+function post(url, data) {
+  const fd = new FormData();
+  for (const k in data) fd.append(k, data[k]);
+  return fetch(url, { method: "POST", body: fd }).then(async r => ({ ok: r.ok, data: await r.json() }));
+}
+
+async function doVerify(code, phone4) {
+  $("msg").textContent = "";
+  const { ok, data } = await post("/staff/api/verify", { raw_code: code, phone_last4: phone4 || "" });
+  if (!ok) { $("msg").textContent = data.detail; $("msg").className = "msg err"; return; }
+  showResult(data);
+}
+
+function showResult(info) {
+  $("result-card").style.display = "block";
+  $("r-title").textContent = info.campaign_title || "凭证";
+  let html = `<div class="kv" style="color:#b9c0d8">凭证编号：${info.code}</div>`;
+  html += `<table class="k-table" style="margin-top:8px">`;
+  html += `<tr><th>金额</th><td>¥${info.price}</td></tr>`;
+  html += `<tr><th>有效期</th><td>${info.expires_at}</td></tr>`;
+  if (info.reservation) {
+    const r = info.reservation;
+    html += `<tr><th>预约人</th><td>${r.name || '-'}</td></tr>`;
+    html += `<tr><th>到店</th><td>${r.date} ${r.time} · ${r.people}人${r.need_room?' · 包间':''}</td></tr>`;
+  }
+  html += `</table>`;
+  $("r-body").innerHTML = html;
+  if (info.redeemable) {
+    pendingVoucherId = info.voucher_id;
+    requestId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()));
+    $("confirm-btn").style.display = "block";
+    $("r-msg").textContent = "";
+  } else {
+    $("confirm-btn").style.display = "none";
+    $("r-msg").textContent = info.reason;
+    $("r-msg").className = "msg err";
+  }
+}
+
+$("confirm-btn").onclick = async () => {
+  if (!pendingVoucherId) return;
+  $("confirm-btn").disabled = true;
+  const { ok, data } = await post("/staff/api/redeem",
+    { voucher_id: pendingVoucherId, request_id: requestId });
+  if (!ok) {
+    $("r-msg").textContent = data.detail; $("r-msg").className = "msg err";
+    $("confirm-btn").style.display = "none";
+    return;
+  }
+  $("r-body").innerHTML = `<div style="text-align:center;padding:20px">
+    <div style="font-size:46px">✅</div>
+    <div style="font-size:18px;font-weight:700;color:#4ade80;margin-top:8px">核销成功</div>
+    <div class="muted" style="margin-top:6px">${data.already ? '（该凭证此前已核销）' : '核销时间 '+data.redeemed_at}</div></div>`;
+  $("confirm-btn").style.display = "none";
+  $("r-title").textContent = "";
+};
+
+$("reset-btn").onclick = () => { $("result-card").style.display = "none"; $("manual").value=""; $("phone4").value=""; pendingVoucherId=null; };
+$("query-btn").onclick = () => { const c = $("manual").value.trim(); if (c) doVerify(c, $("phone4").value.trim()); };
+
+// 摄像头扫码
+$("start-cam").onclick = async () => {
+  try {
+    scanner = new Html5Qrcode("reader");
+    $("start-cam").style.display = "none"; $("stop-cam").style.display = "block";
+    await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 220 },
+      (text) => { stopCam(); doVerify(text, ""); },
+      () => {});
+  } catch (e) {
+    $("msg").textContent = "无法开启摄像头，请用手动输入（需 HTTPS 或 localhost）";
+    $("msg").className = "msg err";
+    $("start-cam").style.display = "block"; $("stop-cam").style.display = "none";
+  }
+};
+function stopCam() { if (scanner) { scanner.stop().catch(()=>{}); scanner=null; }
+  $("start-cam").style.display = "block"; $("stop-cam").style.display = "none"; }
+$("stop-cam").onclick = stopCam;
+</script>
+{% endblock %}

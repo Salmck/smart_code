@@ -1,0 +1,45 @@
+{% extends "base_console.html" %}
+{% block title %}增长动作{% endblock %}
+{% block subtitle %}平台管理端{% endblock %}
+{% block nav %}{% set active='actions' %}{% include "console/_nav_admin.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">增长动作管理</h1>
+<div class="k-card">
+  <div style="font-weight:600;margin-bottom:10px">新建增长动作</div>
+  <form method="post" action="/admin/actions">
+    <div class="form-row">
+      <div><label>所属门店</label><select class="k-select" name="store_id" required>
+        {% for s in stores %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+      <div><label>动作名称</label><input class="k-input" name="name" required></div>
+      <div><label>目标顾客</label><input class="k-input" name="target_customer"></div>
+    </div>
+    <div class="form-row">
+      <div><label>消费场景</label><input class="k-input" name="target_scene"></div>
+      <div style="grid-column:2/4"><label>核心假设</label><input class="k-input" name="hypothesis"></div>
+    </div>
+    <div class="form-row">
+      <div><label>成功指标</label><select class="k-select" name="success_metric">
+        <option value="redeem">核销人数</option><option value="reserve">预约人数</option><option value="scan">独立扫码</option></select></div>
+      <div><label>成功阈值</label><input class="k-input" name="success_threshold" type="number" value="5"></div>
+      <div><label>最低样本量</label><input class="k-input" name="min_sample" type="number" value="20"></div>
+      <div><label>观察周期(天)</label><input class="k-input" name="observe_days" type="number" value="14"></div>
+    </div>
+    <button class="k-btn">创建增长动作</button>
+  </form>
+</div>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>动作</th><th>门店</th><th>假设</th><th>指标/阈值</th><th>执行</th><th>结果</th><th></th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.a.name }}</td><td>{{ row.store.name if row.store }}</td>
+      <td class="muted" style="max-width:220px">{{ row.a.hypothesis }}</td>
+      <td>{{ row.a.success_metric }} ≥ {{ row.a.success_threshold }}</td>
+      <td><span class="k-tag">{{ row.a.status }}</span></td>
+      <td><span class="k-tag {{ 'on' if row.a.result=='success' else ('off' if row.a.result=='failed' else 'warn') }}">{{ row.a.result }}</span></td>
+      <td><a class="k-tag" href="/admin/actions/{{ row.a.id }}">详情</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

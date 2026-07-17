@@ -4,3 +4,9 @@ __pycache__/
 venv/
 .env
 .DS_Store
+# 运行时数据（SQLite 库、上传文件）
+ordinex.db
+ordinex.db-*
+*.db-wal
+*.db-shm
+data/

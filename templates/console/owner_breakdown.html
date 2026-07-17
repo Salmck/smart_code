@@ -1,0 +1,21 @@
+{% extends "base_console.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active = 'channels' if col=='渠道' else 'contents' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">{{ title }}</h1>
+<div class="k-card">
+  {% if not rows %}<div class="muted">暂无数据</div>{% else %}
+  <table class="k-table">
+    <tr><th>{{ col }}</th><th>独立扫码</th><th>预约</th><th>核销</th><th>扫码→核销转化率</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td><span class="k-tag">{{ row.key }}</span></td>
+      <td>{{ row.scan }}</td><td>{{ row.reserve }}</td><td>{{ row.redeem }}</td>
+      <td>{{ row.rate_scan_to_redeem|pct }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

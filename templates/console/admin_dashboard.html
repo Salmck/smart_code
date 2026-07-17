@@ -1,0 +1,21 @@
+{% extends "base_console.html" %}
+{% block title %}全局仪表盘{% endblock %}
+{% block subtitle %}平台管理端{% endblock %}
+{% block nav %}{% set active='home' %}{% include "console/_nav_admin.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">全局数据仪表盘</h1>
+{% include "console/_funnel.html" %}
+<div class="k-card">
+  <div style="font-weight:600;margin-bottom:10px">门店总览（{{ stores|length }} 家）</div>
+  <table class="k-table">
+    <tr><th>门店</th><th>行业</th><th>地址</th><th>状态</th><th></th></tr>
+    {% for s in stores %}
+    <tr>
+      <td>{{ s.name }}</td><td>{{ s.industry }}</td><td class="muted">{{ s.address }}</td>
+      <td><span class="k-tag {{ 'on' if s.status=='active' else 'off' }}">{{ s.status }}</span></td>
+      <td><a class="k-tag" href="/admin/stores">管理</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

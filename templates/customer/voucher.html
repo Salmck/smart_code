@@ -1,0 +1,67 @@
+{% extends "base_customer.html" %}
+{% block title %}核销凭证{% endblock %}
+{% block content %}
+<div class="c-card" style="margin-top:16px;text-align:center">
+  <div class="c-store">{{ store.name }}</div>
+  <h1 class="c-title" style="margin:6px 0">{{ campaign.package_title }}</h1>
+  <span class="status-chip st-{{ voucher.status }}">{{ status_label }}</span>
+</div>
+
+{% if voucher.status == 'usable' %}
+<div class="c-card qr-box">
+  <img id="qr-img" alt="核销二维码" />
+  <div class="muted" style="font-size:12px;color:#9ca3af;margin-top:6px">请向店员出示，二维码每 60 秒自动刷新</div>
+  <div class="backup">备用核销码：{{ voucher.backup_code }}</div>
+</div>
+{% else %}
+<div class="c-card" style="text-align:center;padding:30px">
+  <div style="font-size:40px">{% if voucher.status=='redeemed' %}✅{% elif voucher.status=='pending' %}⏳{% else %}⚠️{% endif %}</div>
+  <p style="color:#6b7280;margin-top:10px">
+    {% if voucher.status=='redeemed' %}该凭证已于 {{ voucher.redeemed_at|dt }} 核销，不可重复使用
+    {% elif voucher.status=='pending' %}预约待门店确认，确认后凭证即可使用
+    {% elif voucher.status=='expired' %}凭证已过期
+    {% else %}凭证已取消{% endif %}
+  </p>
+</div>
+{% endif %}
+
+<div class="c-card">
+  {% if reservation %}
+  <div class="kv"><span class="k">预约人</span><span>{{ reservation.name }}</span></div>
+  <div class="kv"><span class="k">到店时间</span><span>{{ reservation.date }} {{ reservation.time }}</span></div>
+  <div class="kv"><span class="k">用餐人数</span><span>{{ reservation.people }} 人{{ ' · 包间' if reservation.need_room else '' }}</span></div>
+  <div class="kv"><span class="k">预约状态</span><span>{{ reservation.status }}</span></div>
+  {% endif %}
+  <div class="kv"><span class="k">凭证编号</span><span>{{ voucher.code }}</span></div>
+  <div class="kv"><span class="k">有效期至</span><span>{{ voucher.expires_at|dt }}</span></div>
+</div>
+
+<div class="c-card">
+  <div class="kv"><span class="k">门店地址</span><span style="text-align:right;max-width:60%">{{ store.address }}</span></div>
+  <div class="rules" style="margin-top:8px">{{ campaign.usage_rules }}</div>
+</div>
+
+<div class="cta-bar">
+  <a class="btn btn-ghost" href="/my/vouchers">我的凭证</a>
+  {% if store.phone %}<a class="btn btn-primary" href="tel:{{ store.phone }}">联系门店</a>{% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+{% if voucher.status == 'usable' %}
+<script>
+const CODE = "{{ voucher.code }}";
+// 用二维码内容生成图片：调用公共在线渲染不可用，改用本地 canvas 简易绘制？
+// 这里直接请求后端拿动态令牌，再用第三方无依赖方式绘制。为保持自包含，
+// 令牌以文本形式编码进一个简单的 QR：改为请求服务端渲染的二维码图片端点。
+async function refresh() {
+  const d = await (await fetch(`/api/voucher/${CODE}/token`)).json();
+  if (d.status !== "usable") { location.reload(); return; }
+  // 用 img 指向服务端动态二维码渲染端点
+  document.getElementById("qr-img").src = `/api/voucher/${CODE}/qr.png?t=` + Date.now();
+}
+refresh();
+setInterval(refresh, 60000);
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base_console.html" %}
+{% block title %}店员管理{% endblock %}
+{% block subtitle %}门店端{% endblock %}
+{% block nav %}{% set active='staff' %}{% include "console/_nav_owner.html" %}{% endblock %}
+{% block content %}
+<h1 class="k-h1">店员管理</h1>
+<div class="k-card">
+  <div style="font-weight:600;margin-bottom:10px">新增店员</div>
+  <form method="post" action="/owner/staff">
+    <div class="form-row">
+      <div><label>登录用户名</label><input class="k-input" name="username" required></div>
+      <div><label>初始密码</label><input class="k-input" name="password" required></div>
+      <div><label>显示名称</label><input class="k-input" name="display_name"></div>
+    </div>
+    <button class="k-btn">添加店员</button>
+  </form>
+</div>
+<div class="k-card">
+  <table class="k-table">
+    <tr><th>用户名</th><th>名称</th><th>角色</th><th>状态</th><th>操作</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.user.username if row.user }}</td><td>{{ row.user.display_name if row.user }}</td>
+      <td>{{ row.m.role }}</td>
+      <td><span class="k-tag {{ 'on' if row.m.status=='active' else 'off' }}">{{ row.m.status }}</span></td>
+      <td>
+        {% if row.m.role != 'owner' %}
+        <form method="post" action="/owner/staff/{{ row.m.id }}/toggle" style="display:inline">
+          <button class="k-btn k-btn-sm {{ 'k-btn-danger' if row.m.status=='active' else '' }}">
+            {{ '禁用' if row.m.status=='active' else '启用' }}</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

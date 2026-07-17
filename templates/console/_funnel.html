@@ -1,0 +1,38 @@
+{# 转化漏斗 + 核心指标，入参 f = funnel(...) 结果 #}
+<div class="k-grid" style="margin-bottom:16px">
+  <div class="stat"><div class="n brand">{{ f.total_scan }}</div><div class="l">总扫码次数</div></div>
+  <div class="stat"><div class="n">{{ f.unique_scan }}</div><div class="l">独立扫码人数<span class="muted">（近似）</span></div></div>
+  <div class="stat"><div class="n">{{ f.reserve }}</div><div class="l">预约人数</div></div>
+  <div class="stat"><div class="n" style="color:#4ade80">{{ f.redeem }}</div><div class="l">核销人数</div></div>
+  <div class="stat"><div class="n">¥{{ f.redeem_amount|yuan }}</div><div class="l">核销金额</div></div>
+</div>
+
+<div class="k-card">
+  <div style="font-weight:600;margin-bottom:12px">顾客转化漏斗</div>
+  {% set steps = [
+    ('扫码（独立）', f.unique_scan),
+    ('浏览套餐', f.view),
+    ('点击领取/预约', f.click),
+    ('验证手机号', f.verify),
+    ('领取', f.claim),
+    ('预约', f.reserve),
+    ('确认预约', f.confirm),
+    ('实际核销', f.redeem),
+  ] %}
+  {% set maxv = f.unique_scan if f.unique_scan > 0 else 1 %}
+  {% for label, val in steps %}
+  <div class="funnel-step">
+    <span class="lbl">{{ label }}</span>
+    <div class="funnel-bar" style="width:{{ (val / maxv * 260)|round(0,'floor') }}px"></div>
+    <span class="val">{{ val }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="k-grid">
+  <div class="stat"><div class="n">{{ f.rate_scan_to_reserve|pct }}</div><div class="l">扫码→预约转化率</div></div>
+  <div class="stat"><div class="n">{{ f.rate_reserve_to_redeem|pct }}</div><div class="l">预约→核销转化率</div></div>
+  <div class="stat"><div class="n">{{ f.rate_scan_to_redeem|pct }}</div><div class="l">扫码→核销转化率</div></div>
+  <div class="stat"><div class="n">{{ f.repeat_scan }}</div><div class="l">重复扫码次数</div></div>
+</div>
+<div class="muted" style="margin-top:10px">口径：独立扫码人数按匿名访客近似统计（换设备/清缓存会重复计数）；领取/预约/核销人数按顾客手机号去重。分母为 0 显示「暂无数据」。</div>

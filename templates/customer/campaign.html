@@ -1,0 +1,61 @@
+{% extends "base_customer.html" %}
+{% block title %}{{ campaign.package_title }}{% endblock %}
+{% block content %}
+{% if campaign.main_image %}
+  <img class="c-hero" src="{{ campaign.main_image }}" alt="套餐主图" />
+{% else %}
+  <div class="c-hero" style="display:flex;align-items:center;justify-content:center;
+       background:var(--brand-grad);color:#fff;font-size:22px;font-weight:700;">
+    {{ campaign.package_title }}
+  </div>
+{% endif %}
+
+<div class="c-card">
+  <span class="badge">限量优惠 · 剩 {{ remaining }} 份</span>
+  <h1 class="c-title" style="margin-top:10px">{{ campaign.package_title }}</h1>
+  <div class="c-store">📍 {{ store.name }}</div>
+  <div class="price-row">
+    <span class="price-now"><small>¥</small>{{ campaign.price|yuan }}</span>
+    <span class="price-old">¥{{ campaign.original_price|yuan }}</span>
+    <span class="badge">适合 {{ campaign.people }}</span>
+  </div>
+  {% if campaign.package_desc %}<p style="color:#4b5563;font-size:14px;line-height:1.7">{{ campaign.package_desc }}</p>{% endif %}
+</div>
+
+<div class="c-card">
+  <div class="kv"><span class="k">套餐内容</span></div>
+  <p style="color:#374151;font-size:14px;line-height:1.9;white-space:pre-line;margin:8px 0 0">{{ campaign.package_content }}</p>
+</div>
+
+<div class="c-card">
+  <div class="kv"><span class="k">有效期</span><span>领取后 {{ campaign.voucher_valid_days }} 天内有效</span></div>
+  <div class="kv"><span class="k">是否需预约</span><span>{{ '需要提前预约' if campaign.need_reservation else '无需预约，直接到店' }}</span></div>
+  <div class="kv"><span class="k">每人限领</span><span>{{ campaign.per_person_limit }} 份</span></div>
+  <div class="trust">
+    <span>✓ 到店核销</span><span>✓ 过期未用可退</span><span>✓ 正规门店</span>
+  </div>
+</div>
+
+{% if campaign.usage_rules %}
+<div class="c-card">
+  <div class="kv"><span class="k">使用规则</span></div>
+  <div class="rules" style="margin-top:8px">{{ campaign.usage_rules }}</div>
+</div>
+{% endif %}
+
+<div class="c-card">
+  <div class="kv"><span class="k">门店地址</span><span style="text-align:right;max-width:60%">{{ store.address }}</span></div>
+  <div class="kv"><span class="k">联系电话</span><span>{{ store.phone }}</span></div>
+</div>
+
+<div class="cta-bar">
+  {% if store.phone %}<a class="btn btn-ghost" href="tel:{{ store.phone }}">电话</a>{% endif %}
+  {% if open_ok %}
+    <a class="btn btn-primary" href="/q/{{ short_code }}/act">
+      {{ '立即预约' if campaign.need_reservation else '先领取优惠' }}
+    </a>
+  {% else %}
+    <button class="btn btn-primary" disabled>{{ reason }}</button>
+  {% endif %}
+</div>
+{% endblock %}
