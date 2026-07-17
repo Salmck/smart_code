@@ -6,6 +6,16 @@
 <h1 class="k-h1">全局数据仪表盘</h1>
 {% include "console/_funnel.html" %}
 {% include "console/_channels.html" %}
+
+<div class="k-card">
+  <div class="card-h">数据导出</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a class="k-btn k-btn-sm k-btn-ghost" href="/admin/export/redemptions" style="text-decoration:none">核销记录 CSV</a>
+    <a class="k-btn k-btn-sm k-btn-ghost" href="/admin/export/reservations" style="text-decoration:none">预约记录 CSV</a>
+    <a class="k-btn k-btn-sm k-btn-ghost" href="/admin/export/events" style="text-decoration:none">行为事件 CSV</a>
+    <a class="k-btn k-btn-sm k-btn-ghost" href="/admin/export/customers" style="text-decoration:none">顾客列表 CSV（脱敏）</a>
+  </div>
+</div>
 <div class="k-card">
   <div style="font-weight:600;margin-bottom:10px">门店总览（{{ stores|length }} 家）</div>
   <table class="k-table">

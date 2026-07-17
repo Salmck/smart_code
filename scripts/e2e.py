@@ -23,21 +23,48 @@ def p(msg, ok=True):
         sys.exit(1)
 
 
-# ---------- 1. 管理员登录 ----------
+# ---------- 1. 管理员/老板登录 ----------
 admin = requests.Session()
 r = admin.post(f"{BASE}/api/staff/login", data={"username": "admin", "password": "admin123"})
 p(f"管理员登录 (role={r.json().get('role')})", r.ok and r.json()["role"] == "admin")
+boss0 = requests.Session()
+boss0.post(f"{BASE}/api/staff/login", data={"username": "boss", "password": "boss123"})
 
-# ---------- 找到 seed 的二维码短码 ----------
-r = admin.get(f"{BASE}/admin/qrs")
-codes = re.findall(r"<code>(\w+)</code>", r.text)
-p(f"读取到 {len(codes)} 个演示二维码短码", len(codes) >= 3)
-qr_douyin = codes[0]  # 任取一个投放码，其渠道由后端归因
+# ---------- 1b. 走真实配置流程：老板建套餐→建活动→提交，管理员审核通过 ----------
+sys.path.insert(0, ".")
+from app.db import SessionLocal
+from app.models import Campaign as _C, GrowthAction as _GA
 
-# ---------- 2. 顾客扫码（抖音码）----------
+_aid = SessionLocal().query(_GA).first().id
+tag = str(random.randint(1000, 9999))
+r = boss0.post(f"{BASE}/owner/packages", data={
+    "growth_action_id": _aid, "package_title": f"e2e胖头鱼套餐{tag}",
+    "package_content": "太平湖胖头鱼一条 · 时蔬2份", "people": "6-8人",
+    "original_price": 368, "price": 298})
+p("老板创建套餐", r.ok)
+from app.models import Package as _P
+_pid = SessionLocal().query(_P).filter_by(package_title=f"e2e胖头鱼套餐{tag}").first().id
+r = boss0.post(f"{BASE}/owner/campaigns", data={
+    "package_id": _pid, "name": f"e2e家庭聚餐场{tag}", "stock": 50,
+    "need_reservation": "1", "reservable_times": "午市 11:00-14:00, 晚市 17:00-21:00"})
+p("老板创建活动(草稿)", r.ok)
+_camp = SessionLocal().query(_C).filter_by(name=f"e2e家庭聚餐场{tag}").first()
+r = boss0.post(f"{BASE}/owner/campaigns/{_camp.id}/submit")
+p("老板提交审核", r.ok)
+r = admin.post(f"{BASE}/admin/campaigns/{_camp.id}/approve")
+p("管理员审核通过(自动生成二维码)", r.ok)
+
+# ---------- 找到审核通过后生成的二维码短码 ----------
+from app.models import QRPlacement as _Q
+qrs = SessionLocal().query(_Q).filter_by(campaign_id=_camp.id).all()
+p(f"审核通过后生成 {len(qrs)} 个平台二维码", len(qrs) >= 3)
+codes = [q.short_code for q in qrs]
+qr_douyin = codes[0]
+
+# ---------- 2. 顾客扫码 ----------
 cust = requests.Session()
 r = cust.get(f"{BASE}/q/{qr_douyin}")
-p("顾客扫码打开套餐页", r.ok and "太平湖胖头鱼" in r.text)
+p("顾客扫码打开套餐页", r.ok and "胖头鱼" in r.text)
 vid = cust.cookies.get("ordinex_vid")
 p(f"生成匿名访客ID ({vid[:8]}…)", bool(vid))
 

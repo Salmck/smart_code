@@ -44,8 +44,19 @@
 {% endif %}
 
 <div class="c-card">
-  <div class="kv"><span class="k">门店地址</span><span style="text-align:right;max-width:60%">{{ store.address }}</span></div>
-  <div class="kv"><span class="k">联系电话</span><span>{{ store.phone }}</span></div>
+  <div class="kv" style="border:none;padding-bottom:2px"><span class="k">门店信息</span></div>
+  <div class="store-card" style="margin-top:8px">
+    <div class="store-ico">🏪</div>
+    <div style="min-width:0">
+      <div style="font-weight:700">{{ store.name }}</div>
+      <div class="c-store" style="margin-top:2px">{{ store.address }}</div>
+      {% if store.phone %}<div class="c-store">{{ store.phone }}</div>{% endif %}
+    </div>
+  </div>
+  <div class="store-actions">
+    <a href="https://uri.amap.com/search?keyword={{ (store.name ~ ' ' ~ store.address)|urlencode }}" target="_blank">📍 导航到店</a>
+    {% if store.phone %}<a href="tel:{{ store.phone }}">📞 联系门店</a>{% endif %}
+  </div>
 </div>
 
 {% if my_voucher %}

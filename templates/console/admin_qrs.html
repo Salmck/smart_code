@@ -4,7 +4,16 @@
 {% block nav %}{% set active='qrs' %}{% include "console/_nav_admin.html" %}{% endblock %}
 {% block content %}
 <h1 class="k-h1">专属增长码</h1>
-<div class="muted" style="margin-bottom:14px">生成时不选平台，一次为活动生成全部平台的码；下载时按平台展开选择。</div>
+<div class="muted" style="margin-bottom:14px">活动审核通过后自动生成全部平台的码；下载时按平台展开选择。</div>
+
+{% if not groups %}
+<div class="k-card" style="text-align:center;padding:34px">
+  <div style="font-size:34px">🗂️</div>
+  <div style="margin-top:10px;font-weight:600">暂无二维码</div>
+  <div class="muted" style="margin-top:6px">待门店提交活动并审核通过后，这里会显示自动生成的全部平台二维码</div>
+  <a class="k-btn k-btn-sm" href="/admin/campaigns" style="margin-top:14px;display:inline-block;text-decoration:none">去审核活动</a>
+</div>
+{% endif %}
 
 {% for g in groups %}
 <div class="k-card">

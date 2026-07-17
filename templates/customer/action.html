@@ -1,56 +1,69 @@
 {% extends "base_customer.html" %}
-{% block title %}{{ '预约' if campaign.need_reservation else '领取优惠' }}{% endblock %}
+{% block title %}{{ '填写预约信息' if campaign.need_reservation else '领取优惠' }}{% endblock %}
 {% block content %}
 <div class="c-card" style="margin-top:16px">
-  <h1 class="c-title">{{ '填写预约信息' if campaign.need_reservation else '领取优惠' }}</h1>
+  <h1 class="c-title" style="display:flex;justify-content:space-between;align-items:center">
+    {{ '填写预约信息' if campaign.need_reservation else '领取优惠' }}
+    <a href="/q/{{ short_code }}" style="color:#9ca3af;text-decoration:none;font-size:20px;font-weight:400">×</a>
+  </h1>
   <div class="c-store">{{ campaign.package_title }} · ¥{{ campaign.price|yuan }}</div>
 </div>
 
-<!-- 第一步：手机号验证 -->
-<div class="c-card" id="verify-step" style="{{ 'display:none' if logged_in else '' }}">
-  <label class="field-label">手机号</label>
-  <input id="phone" class="c-input" type="tel" maxlength="11" placeholder="请输入手机号" />
-  <label class="field-label">人机验证</label>
-  <div style="display:flex;gap:8px;align-items:center">
+<div class="c-card">
+  {% if campaign.need_reservation %}
+  <label class="field-label">预约日期</label>
+  <input id="r-date" class="c-input" type="date" required />
+
+  <label class="field-label">预约时间</label>
+  <div class="slot-grid" id="slot-grid">
+    {% set times = campaign.reservable_times if campaign.reservable_times else
+       ['11:00','11:30','12:00','12:30','13:00','17:00','17:30','18:00','18:30','19:00','19:30','20:00'] %}
+    {% for t in times %}
+    <div class="slot {{ 'wide' if t|length > 6 }}" data-t="{{ t }}">{{ t }}</div>
+    {% endfor %}
+  </div>
+
+  <label class="field-label">用餐人数</label>
+  <div class="stepper">
+    <button type="button" id="p-minus">−</button>
+    <span class="num" id="p-num">2</span>
+    <button type="button" id="p-plus">+</button>
+  </div>
+
+  {% if campaign.extra.get('supports_room') %}
+  <label class="field-label" style="display:flex;align-items:center;gap:10px">
+    需要包间 <input id="r-room" type="checkbox" class="switch" />
+  </label>
+  {% endif %}
+
+  <label class="field-label">您的姓名</label>
+  <input id="r-name" class="c-input" placeholder="请输入姓名" />
+  {% endif %}
+
+  {% if not logged_in %}
+  <label class="field-label">手机号码</label>
+  <div class="inline-row">
+    <input id="phone" class="c-input" type="tel" maxlength="11" placeholder="请输入手机号" />
+    <button class="btn btn-ghost" id="send-code" type="button">获取验证码</button>
+  </div>
+  <div class="inline-row" id="captcha-row" style="display:none;align-items:center">
     <div id="captcha-q" class="c-input" style="flex:0 0 auto;width:auto;white-space:nowrap;background:#f9fafb;font-weight:600">…</div>
-    <input id="captcha-answer" class="c-input" style="margin-top:0;flex:1;min-width:0" placeholder="答案" />
-    <button class="btn-ghost btn" id="refresh-captcha" type="button" style="flex:0 0 auto">换</button>
+    <input id="captcha-answer" class="c-input" placeholder="人机验证答案" />
+    <button class="btn btn-ghost" id="captcha-ok" type="button">确定</button>
   </div>
   <label class="field-label">验证码</label>
-  <div style="display:flex;gap:8px">
-    <input id="code" class="c-input" style="margin-top:0;flex:1;min-width:0" maxlength="6" placeholder="6 位验证码" />
-    <button class="btn btn-ghost" id="send-code" type="button" style="flex:0 0 auto">获取验证码</button>
-  </div>
-  <button class="btn btn-primary" id="verify-btn" type="button" style="width:100%;margin-top:16px">验证手机号</button>
-  <div class="msg" id="verify-msg"></div>
-</div>
-
-<!-- 第二步：领取 / 预约 -->
-<div class="c-card" id="action-step" style="{{ '' if logged_in else 'display:none' }}">
-  {% if campaign.need_reservation %}
-    <label class="field-label">联系人姓名</label>
-    <input id="r-name" class="c-input" placeholder="您的称呼" />
-    <label class="field-label">到店日期</label>
-    <input id="r-date" class="c-input" type="date" />
-    <label class="field-label">到店时间</label>
-    <select id="r-time" class="c-input">
-      {% for t in campaign.reservable_times %}<option>{{ t }}</option>{% endfor %}
-    </select>
-    <label class="field-label">用餐人数</label>
-    <input id="r-people" class="c-input" type="number" min="1" value="6" />
-    {% if campaign.extra.get('supports_room') %}
-    <label class="field-label" style="display:flex;align-items:center;gap:8px;margin-top:14px">
-      <input id="r-room" type="checkbox" style="width:auto" /> 需要包间
-    </label>
-    {% endif %}
-    <label class="field-label">备注（选填）</label>
-    <input id="r-note" class="c-input" placeholder="其他需求" />
-    <button class="btn btn-primary" id="reserve-btn" type="button" style="width:100%;margin-top:18px">提交预约</button>
-  {% else %}
-    <p style="color:#4b5563">确认领取「{{ campaign.package_title }}」，领取后到店出示核销凭证即可使用。</p>
-    <button class="btn btn-primary" id="claim-btn" type="button" style="width:100%;margin-top:12px">确认领取</button>
+  <input id="code" class="c-input" maxlength="6" placeholder="请输入验证码" />
   {% endif %}
-  <div class="msg" id="action-msg"></div>
+
+  {% if campaign.need_reservation %}
+  <label class="field-label">备注（选填）</label>
+  <textarea id="r-note" class="c-textarea" placeholder="如有特殊需求请备注"></textarea>
+  <button class="btn btn-primary" id="submit-btn" type="button" style="width:100%;margin-top:18px">提交预约</button>
+  {% else %}
+  <p style="color:#4b5563;margin-top:16px">确认领取「{{ campaign.package_title }}」，领取后到店出示核销凭证即可使用。</p>
+  <button class="btn btn-primary" id="submit-btn" type="button" style="width:100%;margin-top:12px">确认领取</button>
+  {% endif %}
+  <div class="msg" id="msg"></div>
 </div>
 {% endblock %}
 
@@ -58,18 +71,11 @@
 <script>
 const SHORT = "{{ short_code }}";
 const NEED_RES = {{ 'true' if campaign.need_reservation else 'false' }};
+let LOGGED_IN = {{ 'true' if logged_in else 'false' }};
 const $ = (id) => document.getElementById(id);
-let captchaId = null;
+let captchaId = null, pickedTime = "", people = 2;
 
-async function loadCaptcha() {
-  if (!$("captcha-q")) return;
-  $("captcha-answer").value = "";
-  const d = await (await fetch("/api/captcha")).json();
-  captchaId = d.captcha_id; $("captcha-q").textContent = d.question;
-}
-function vmsg(t, ok) { const e=$("verify-msg"); e.textContent=t; e.className="msg "+(ok?"ok":"err"); }
-function amsg(t, ok) { const e=$("action-msg"); e.textContent=t; e.className="msg "+(ok?"ok":"err"); }
-
+function msg(t, ok) { const e=$("msg"); e.textContent=t; e.className="msg "+(ok?"ok":"err"); }
 async function post(url, data) {
   const fd = new FormData();
   for (const k in data) fd.append(k, data[k]);
@@ -77,54 +83,80 @@ async function post(url, data) {
   return { ok: r.ok, data: await r.json() };
 }
 
+// 时间段芯片
+document.querySelectorAll(".slot").forEach(el => el.onclick = () => {
+  document.querySelectorAll(".slot").forEach(s => s.classList.remove("on"));
+  el.classList.add("on"); pickedTime = el.dataset.t;
+});
+// 人数步进
+if ($("p-minus")) {
+  $("p-minus").onclick = () => { if (people > 1) $("p-num").textContent = --people; };
+  $("p-plus").onclick = () => { $("p-num").textContent = ++people; };
+}
+// 日期最早今天
+if ($("r-date")) $("r-date").min = new Date().toISOString().slice(0,10);
+
+// 获取验证码：先弹人机验证，答对即发送
 if ($("send-code")) {
-  let cd = 0;
   $("send-code").onclick = async () => {
     const phone = $("phone").value.trim();
-    if (!/^1[3-9]\d{9}$/.test(phone)) return vmsg("请输入正确的手机号");
-    if (!$("captcha-answer").value.trim()) return vmsg("请先完成人机验证");
-    $("send-code").disabled = true;
+    if (!/^1[3-9]\d{9}$/.test(phone)) return msg("请输入正确的手机号");
+    const d = await (await fetch("/api/captcha")).json();
+    captchaId = d.captcha_id; $("captcha-q").textContent = d.question;
+    $("captcha-row").style.display = "flex"; $("captcha-answer").focus();
+  };
+  $("captcha-ok").onclick = async () => {
+    const phone = $("phone").value.trim();
+    const ans = $("captcha-answer").value.trim();
+    if (!ans) return msg("请输入人机验证答案");
+    $("captcha-ok").disabled = true;
     const { ok, data } = await post("/api/customer/send-code",
-      { short_code: SHORT, phone, captcha_id: captchaId, captcha_answer: $("captcha-answer").value.trim() });
-    if (!ok) { vmsg(data.detail); loadCaptcha(); $("send-code").disabled = false; return; }
-    vmsg("验证码已发送，请查看服务端控制台", true);
+      { short_code: SHORT, phone, captcha_id: captchaId, captcha_answer: ans });
+    $("captcha-ok").disabled = false;
+    if (!ok) { msg(data.detail); $("captcha-answer").value="";
+      const d = await (await fetch("/api/captcha")).json(); captchaId=d.captcha_id; $("captcha-q").textContent=d.question; return; }
+    $("captcha-row").style.display = "none";
+    msg("验证码已发送", true);
     if (data.debug_code) $("code").value = data.debug_code;
-    cd = 60;
+    let cd = 60; $("send-code").disabled = true;
     const t = setInterval(() => { $("send-code").textContent = cd + "s";
       if (--cd < 0) { clearInterval(t); $("send-code").disabled=false; $("send-code").textContent="获取验证码"; } }, 1000);
   };
-  $("refresh-captcha").onclick = loadCaptcha;
-  $("verify-btn").onclick = async () => {
-    const phone = $("phone").value.trim(), code = $("code").value.trim();
-    if (!/^1[3-9]\d{9}$/.test(phone)) return vmsg("请输入正确的手机号");
-    if (!code) return vmsg("请输入验证码");
-    const { ok, data } = await post("/api/customer/verify", { short_code: SHORT, phone, code });
-    if (!ok) return vmsg(data.detail);
-    // 已有凭证：直接带去凭证页（找回已领/已约的码）
-    if (data.existing_voucher) { location.href = data.existing_voucher; return; }
-    $("verify-step").style.display = "none";
-    $("action-step").style.display = "block";
-  };
-  loadCaptcha();
 }
 
-if ($("claim-btn")) $("claim-btn").onclick = async () => {
-  $("claim-btn").disabled = true;
-  const { ok, data } = await post("/api/customer/claim", { short_code: SHORT });
-  if (!ok) { amsg(data.detail); $("claim-btn").disabled = false; return; }
-  location.href = data.redirect;
-};
+async function ensureVerified() {
+  if (LOGGED_IN) return true;
+  const phone = $("phone").value.trim(), code = $("code").value.trim();
+  if (!/^1[3-9]\d{9}$/.test(phone)) { msg("请输入正确的手机号"); return false; }
+  if (!code) { msg("请输入验证码"); return false; }
+  const { ok, data } = await post("/api/customer/verify", { short_code: SHORT, phone, code });
+  if (!ok) { msg(data.detail); return false; }
+  if (data.existing_voucher) { location.href = data.existing_voucher; return false; }
+  LOGGED_IN = true;
+  return true;
+}
 
-if ($("reserve-btn")) $("reserve-btn").onclick = async () => {
-  const date = $("r-date").value, time = $("r-time").value;
-  if (!date) return amsg("请选择到店日期");
-  $("reserve-btn").disabled = true;
-  const { ok, data } = await post("/api/customer/reserve", {
-    short_code: SHORT, name: $("r-name").value, date, time,
-    people: $("r-people").value, need_room: $("r-room") && $("r-room").checked ? "1" : "",
-    note: $("r-note").value });
-  if (!ok) { amsg(data.detail); $("reserve-btn").disabled = false; return; }
-  location.href = data.redirect;
+$("submit-btn").onclick = async () => {
+  $("submit-btn").disabled = true;
+  try {
+    if (NEED_RES) {
+      const date = $("r-date").value;
+      if (!date) { msg("请选择预约日期"); return; }
+      if (!pickedTime) { msg("请选择预约时间"); return; }
+      if (!(await ensureVerified())) return;
+      const { ok, data } = await post("/api/customer/reserve", {
+        short_code: SHORT, name: $("r-name").value, date, time: pickedTime,
+        people: people, need_room: ($("r-room") && $("r-room").checked) ? "1" : "",
+        note: $("r-note").value });
+      if (!ok) { msg(data.detail); return; }
+      location.href = data.redirect;
+    } else {
+      if (!(await ensureVerified())) return;
+      const { ok, data } = await post("/api/customer/claim", { short_code: SHORT });
+      if (!ok) { msg(data.detail); return; }
+      location.href = data.redirect;
+    }
+  } finally { $("submit-btn").disabled = false; }
 };
 </script>
 {% endblock %}

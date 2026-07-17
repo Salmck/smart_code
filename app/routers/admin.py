@@ -234,6 +234,54 @@ async def upload_reference(user: AuthUser = Depends(require_admin), db=Depends(g
     return RedirectResponse("/admin/qrs", status_code=302)
 
 
+# ---------- 数据导出（全部门店，手机号脱敏）----------
+@router.get("/export/{kind}")
+def export(kind: str, user: AuthUser = Depends(require_admin), db=Depends(get_db)):
+    import csv
+    import io
+
+    from fastapi.responses import StreamingResponse
+
+    from ..models import Customer, Event, Redemption, Reservation
+    from ..utils import mask_phone
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    if kind == "redemptions":
+        w.writerow(["核销ID", "门店ID", "凭证ID", "店员ID", "金额", "是否冲正", "核销时间"])
+        for r in db.query(Redemption).order_by(Redemption.created_at.desc()):
+            w.writerow([r.id, r.store_id, r.voucher_id, r.staff_id, r.amount,
+                        "是" if r.is_reversal else "否",
+                        r.created_at.strftime("%Y-%m-%d %H:%M")])
+    elif kind == "reservations":
+        w.writerow(["预约ID", "门店ID", "姓名", "手机(脱敏)", "日期", "时间", "人数", "包间", "状态"])
+        for r in db.query(Reservation).order_by(Reservation.created_at.desc()):
+            c = db.get(Customer, r.customer_id)
+            w.writerow([r.id, r.store_id, r.name, mask_phone(c.phone) if c else "",
+                        r.date, r.time, r.people, "是" if r.need_room else "否", r.status])
+    elif kind == "events":
+        w.writerow(["事件ID", "类型", "门店ID", "增长动作ID", "活动ID", "二维码ID",
+                    "渠道", "访客ID", "顾客ID", "时间"])
+        for e in db.query(Event).order_by(Event.created_at.desc()).limit(10000):
+            w.writerow([e.id, e.event_type, e.store_id, e.growth_action_id, e.campaign_id,
+                        e.qr_id, e.channel, e.visitor_id or "", e.customer_id or "",
+                        e.created_at.strftime("%Y-%m-%d %H:%M:%S")])
+    elif kind == "customers":
+        w.writerow(["顾客ID", "姓名", "手机(脱敏)", "首次访问", "最近访问"])
+        for c in db.query(Customer).order_by(Customer.created_at.desc()):
+            w.writerow([c.id, c.name, mask_phone(c.phone),
+                        c.first_seen.strftime("%Y-%m-%d %H:%M"),
+                        c.last_seen.strftime("%Y-%m-%d %H:%M")])
+    else:
+        raise HTTPException(status_code=400, detail="不支持的导出类型")
+    audit(db, user_id=user.id, role=user.role, store_id=None, action="export",
+          target=f"export:{kind}")
+    buf.seek(0)
+    return StreamingResponse(
+        iter(["﻿" + buf.getvalue()]), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{kind}.csv"'})
+
+
 # ---------- 审计日志 ----------
 @router.get("/audit")
 def audit_page(request: Request, user: AuthUser = Depends(require_admin), db=Depends(get_db)):

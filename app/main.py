@@ -43,6 +43,10 @@ app.include_router(qr.router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# 上传文件（套餐图/参考海报）对外访问
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
 
 @app.get("/healthz")
 def healthz():

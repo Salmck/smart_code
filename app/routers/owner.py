@@ -5,7 +5,7 @@
 import csv
 import io
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from ..audit import audit
@@ -85,12 +85,13 @@ def strategy_detail(action_id: int, user: AuthUser = Depends(require_owner), db=
 
 
 @router.post("/packages")
-def create_package(user: AuthUser = Depends(require_owner), db=Depends(get_db),
-                   growth_action_id: int = Form(...), package_title: str = Form(...),
-                   package_content: str = Form(...), people: str = Form(""),
-                   original_price: float = Form(0), price: float = Form(...),
-                   package_desc: str = Form(""), usage_rules: str = Form(""),
-                   supports_room: str = Form("")):
+async def create_package(user: AuthUser = Depends(require_owner), db=Depends(get_db),
+                         growth_action_id: int = Form(...), package_title: str = Form(...),
+                         package_content: str = Form(...), people: str = Form(""),
+                         original_price: float = Form(0), price: float = Form(...),
+                         package_desc: str = Form(""), usage_rules: str = Form(""),
+                         supports_room: str = Form(""),
+                         image: UploadFile | None = File(None)):
     sid = _sid(user)
     a = db.get(GrowthAction, int(growth_action_id))
     if not a or a.store_id != sid:
@@ -104,6 +105,20 @@ def create_package(user: AuthUser = Depends(require_owner), db=Depends(get_db),
         original_price=float(original_price), price=float(price),
         package_desc=sanitize_text(package_desc), usage_rules=sanitize_text(usage_rules),
         extra={"supports_room": bool(supports_room)})
+    # 套餐图（选填）：保存后展示在顾客扫码看到的套餐页
+    if image and image.filename:
+        import os
+        from ..config import settings as _s
+        ext = os.path.splitext(image.filename)[1].lower() or ".png"
+        if ext in (".png", ".jpg", ".jpeg", ".webp"):
+            data = await image.read()
+            if len(data) <= 8 * 1024 * 1024:
+                os.makedirs(_s.UPLOAD_DIR, exist_ok=True)
+                fname = f"pkg_{p.id}{ext}"
+                with open(os.path.join(_s.UPLOAD_DIR, fname), "wb") as f:
+                    f.write(data)
+                p.main_image = f"/uploads/{fname}"
+                db.commit()
     audit(db, user_id=user.id, role=user.role, store_id=sid, action="create_package",
           target=f"package:{p.id}", after={"title": p.package_title})
     return RedirectResponse("/owner/packages", status_code=302)

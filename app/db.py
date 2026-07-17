@@ -45,7 +45,29 @@ def get_db():
         db.close()
 
 
+def _schema_outdated() -> bool:
+    """检测现有库的表结构是否落后于模型（缺表或缺列）。"""
+    from sqlalchemy import inspect
+    insp = inspect(engine)
+    existing_tables = set(insp.get_table_names())
+    if not existing_tables:
+        return False  # 全新库，直接建表即可
+    for table in Base.metadata.tables.values():
+        if table.name not in existing_tables:
+            return True
+        have = {c["name"] for c in insp.get_columns(table.name)}
+        need = {c.name for c in table.columns}
+        if need - have:
+            return True
+    return False
+
+
 def init_db():
-    """建表（幂等）。"""
+    """建表（幂等）。结构过期时自动重建（当前为演示阶段，允许清空重灌）。"""
+    import logging
     from . import models  # noqa: F401  确保模型已注册
+
+    if _schema_outdated():
+        logging.getLogger("db").warning("检测到数据库结构过期，自动重建并清空旧数据 …")
+        Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
