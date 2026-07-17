@@ -4,22 +4,42 @@
 {% block nav %}{% set active='qrs' %}{% include "console/_nav_owner.html" %}{% endblock %}
 {% block content %}
 <h1 class="k-h1">本店二维码</h1>
+<div class="muted" style="margin-bottom:14px">每个活动一次生成全部平台的码，下载时按平台展开选择。</div>
+
+{% for g in groups %}
 <div class="k-card">
-  <table class="k-table">
-    <tr><th>名称</th><th>活动</th><th>渠道</th><th>内容</th><th>短码</th><th>下载</th></tr>
-    {% for row in rows %}
-    <tr>
-      <td>{{ row.qr.name }}</td><td class="muted">{{ row.campaign.package_title if row.campaign }}</td>
-      <td><span class="k-tag">{{ row.qr.channel }}</span></td><td>{{ row.qr.content_no }}</td>
-      <td><code>{{ row.qr.short_code }}</code></td>
-      <td style="white-space:nowrap">
-        <a class="k-tag" href="/qr/{{ row.qr.id }}/png">PNG</a>
-        <a class="k-tag" href="/qr/{{ row.qr.id }}/svg">SVG</a>
-        <a class="k-tag" href="/qr/{{ row.qr.id }}/caption">文字版</a>
-        <a class="k-tag" href="/q/{{ row.qr.short_code }}" target="_blank">预览</a>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div style="font-weight:700;font-size:15px">{{ g.campaign.package_title or g.campaign.name }}</div>
+  <div class="muted">已生成 {{ g.qrs|length }} 个平台码
+    {% if g.campaign.ref_qr_box %}· 参考图已识别，可下海报版{% endif %}</div>
+  {% if g.qrs %}
+  <details class="qr-fold">
+    <summary>展开 {{ g.qrs|length }} 个平台的二维码下载</summary>
+    <table class="k-table" style="margin-top:10px">
+      <tr><th>平台</th><th>短码</th><th>下载</th></tr>
+      {% for qr in g.qrs %}
+      <tr>
+        <td><span class="k-tag">{{ qr.channel }}</span></td>
+        <td><code>{{ qr.short_code }}</code></td>
+        <td style="white-space:nowrap">
+          <a class="k-tag" href="/qr/{{ qr.id }}/marked">平台标PNG</a>
+          <a class="k-tag" href="/qr/{{ qr.id }}/png">纯码PNG</a>
+          <a class="k-tag" href="/qr/{{ qr.id }}/svg">SVG</a>
+          {% if g.campaign.ref_qr_box %}<a class="k-tag" href="/qr/{{ qr.id }}/poster">海报版</a>{% endif %}
+          <a class="k-tag" href="/q/{{ qr.short_code }}" target="_blank">预览</a>
+          <button class="k-tag" style="border:none;cursor:pointer" onclick="copyLink('{{ qr.short_code }}')">复制短链</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </details>
+  {% endif %}
 </div>
+{% endfor %}
+
+<script>
+function copyLink(code) {
+  const base = "{{ PUBLIC_BASE_URL }}" || location.origin;
+  navigator.clipboard.writeText(base + "/q/" + code).then(() => alert("已复制：" + base + "/q/" + code));
+}
+</script>
 {% endblock %}

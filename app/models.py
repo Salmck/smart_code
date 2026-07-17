@@ -202,6 +202,8 @@ class Campaign(Base):
     ends_at = Column(DateTime, nullable=True)
     status = Column(String(16), default=CampaignStatus.DRAFT)
     extra = Column(JSON, default=dict)                 # 行业特有字段（如是否包间）
+    ref_image = Column(String(256), default="")        # 参考图（海报）文件名
+    ref_qr_box = Column(JSON, nullable=True)           # 识别到的二维码区域 [x,y,w,h]
     created_at = Column(DateTime, default=now_utc)
 
 

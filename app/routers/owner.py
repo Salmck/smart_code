@@ -82,10 +82,11 @@ def campaign_status(campaign_id: int, user: AuthUser = Depends(require_owner),
 @router.get("/qrs")
 def qrs(request: Request, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
     sid = _sid(user)
-    qlist = db.query(QRPlacement).filter_by(store_id=sid).all()
-    rows = [{"qr": q, "campaign": db.get(Campaign, q.campaign_id)} for q in qlist]
+    campaigns = db.query(Campaign).filter_by(store_id=sid).order_by(Campaign.created_at.desc()).all()
+    groups = [{"campaign": c, "qrs": db.query(QRPlacement).filter_by(campaign_id=c.id).all()}
+              for c in campaigns]
     return templates.TemplateResponse(
-        "console/owner_qrs.html", {"request": request, "user": user, "rows": rows})
+        "console/owner_qrs.html", {"request": request, "user": user, "groups": groups})
 
 
 @router.get("/reservations")

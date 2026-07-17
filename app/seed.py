@@ -18,7 +18,7 @@ from .models import (
     now_utc,
 )
 from .security import hash_password
-from .services.catalog_service import create_qr
+from .services.catalog_service import generate_all_platform_qrs
 
 logger = logging.getLogger("seed")
 
@@ -80,16 +80,8 @@ def seed_all(db):
     db.add(campaign)
     db.flush()
 
-    # 三个渠道二维码
-    for name, channel, content, material in [
-        ("抖音视频01", "抖音", "video_01", "douyin_v01"),
-        ("微信社群海报01", "微信社群", "poster_01", "wx_group_p01"),
-        ("朋友圈海报02", "微信朋友圈", "poster_02", "moments_p02"),
-    ]:
-        create_qr(db, store_id=store.id, growth_action_id=action.id,
-                  campaign_id=campaign.id, channel=channel, name=name,
-                  content_no=content, material_no=material)
-
+    # 一次生成全部平台二维码（含抖音/微信朋友圈/微信社群等）
+    generate_all_platform_qrs(db, campaign)
     db.commit()
 
     seed_demo_traffic(db, store, action, campaign)

@@ -36,7 +36,7 @@ def create_campaign(db, *, store_id, growth_action_id, **fields) -> Campaign:
 
 
 def create_qr(db, *, store_id, growth_action_id, campaign_id, channel,
-              content_no="", material_no="", name="", note="") -> QRPlacement:
+              content_no="", material_no="", name="", note="", commit=True) -> QRPlacement:
     """生成专属增长码。短码随机且唯一，永久不变。"""
     for _ in range(10):
         code = gen_shortcode(settings.SHORTCODE_LENGTH)
@@ -50,8 +50,48 @@ def create_qr(db, *, store_id, growth_action_id, campaign_id, channel,
         material_no=material_no, name=name, note=note,
     )
     db.add(qr)
-    db.commit()
+    if commit:
+        db.commit()
     return qr
+
+
+def generate_all_platform_qrs(db, campaign) -> int:
+    """为活动一次性生成全部平台的二维码（已存在的平台跳过）。返回新建数量。"""
+    from ..platforms import PLATFORMS
+    existing = {q.channel for q in
+                db.query(QRPlacement).filter_by(campaign_id=campaign.id).all()}
+    created = 0
+    for platform, _color in PLATFORMS:
+        if platform in existing:
+            continue
+        create_qr(db, store_id=campaign.store_id,
+                  growth_action_id=campaign.growth_action_id, campaign_id=campaign.id,
+                  channel=platform, name=f"{campaign.package_title or campaign.name}·{platform}",
+                  commit=False)
+        created += 1
+    db.commit()
+    return created
+
+
+def set_campaign_reference(db, campaign, image_bytes: bytes, filename: str) -> dict:
+    """保存活动参考图（海报）并识别其中二维码区域，供下载时把真码替换进去。"""
+    import os
+    from ..qrgen import detect_qr_box
+
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    ext = os.path.splitext(filename)[1].lower() or ".png"
+    if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+        raise ValueError("仅支持 PNG/JPG/WEBP 图片")
+    safe_name = f"ref_c{campaign.id}{ext}"
+    path = os.path.join(settings.UPLOAD_DIR, safe_name)
+    with open(path, "wb") as f:
+        f.write(image_bytes)
+
+    box = detect_qr_box(image_bytes)
+    campaign.ref_image = safe_name
+    campaign.ref_qr_box = list(box) if box else None
+    db.commit()
+    return {"saved": safe_name, "detected": box is not None, "box": box}
 
 
 def set_campaign_status(db, campaign: Campaign, to_status: str):

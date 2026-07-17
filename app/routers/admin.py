@@ -1,7 +1,7 @@
 """平台管理端：门店 / 增长动作 / 活动 / 二维码创建，全局仪表盘，策略分析，审计。"""
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from ..audit import audit
@@ -161,31 +161,44 @@ def create_campaign(user: AuthUser = Depends(require_admin), db=Depends(get_db),
 # ---------- 二维码 ----------
 @router.get("/qrs")
 def qrs_page(request: Request, user: AuthUser = Depends(require_admin), db=Depends(get_db)):
-    qrs = db.query(QRPlacement).order_by(QRPlacement.created_at.desc()).all()
-    campaigns = db.query(Campaign).all()
-    rows = [{"qr": q, "store": db.get(Store, q.store_id),
-             "campaign": db.get(Campaign, q.campaign_id)} for q in qrs]
+    campaigns = db.query(Campaign).order_by(Campaign.created_at.desc()).all()
+    groups = []
+    for c in campaigns:
+        qrs = db.query(QRPlacement).filter_by(campaign_id=c.id).all()
+        groups.append({"campaign": c, "store": db.get(Store, c.store_id), "qrs": qrs})
     return templates.TemplateResponse(
         "console/admin_qrs.html",
-        {"request": request, "user": user, "rows": rows,
-         "campaigns": campaigns, "channels": CHANNELS})
+        {"request": request, "user": user, "groups": groups})
 
 
-@router.post("/qrs")
-def create_qr(user: AuthUser = Depends(require_admin), db=Depends(get_db),
-              campaign_id: int = Form(...), channel: str = Form(...),
-              name: str = Form(""), content_no: str = Form(""),
-              material_no: str = Form(""), note: str = Form("")):
+@router.post("/qrs/generate")
+def generate_qrs(user: AuthUser = Depends(require_admin), db=Depends(get_db),
+                 campaign_id: int = Form(...)):
     campaign = db.get(Campaign, int(campaign_id))
     if not campaign:
         raise HTTPException(status_code=404, detail="活动不存在")
-    qr = catalog_service.create_qr(
-        db, store_id=campaign.store_id, growth_action_id=campaign.growth_action_id,
-        campaign_id=campaign.id, channel=channel, content_no=sanitize_text(content_no, 64),
-        material_no=sanitize_text(material_no, 64), name=sanitize_text(name, 128),
-        note=sanitize_text(note, 256))
-    audit(db, user_id=user.id, role=user.role, store_id=qr.store_id,
-          action="create_qr", target=f"qr:{qr.short_code}", after={"channel": channel})
+    n = catalog_service.generate_all_platform_qrs(db, campaign)
+    audit(db, user_id=user.id, role=user.role, store_id=campaign.store_id,
+          action="generate_qrs", target=f"campaign:{campaign.id}", after={"created": n})
+    return RedirectResponse("/admin/qrs", status_code=302)
+
+
+@router.post("/qrs/reference")
+async def upload_reference(user: AuthUser = Depends(require_admin), db=Depends(get_db),
+                           campaign_id: int = Form(...), image: UploadFile = File(...)):
+    campaign = db.get(Campaign, int(campaign_id))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    data = await image.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="图片过大（上限 8MB）")
+    try:
+        result = catalog_service.set_campaign_reference(db, campaign, data, image.filename or "ref.png")
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    audit(db, user_id=user.id, role=user.role, store_id=campaign.store_id,
+          action="upload_reference", target=f"campaign:{campaign.id}",
+          after={"detected": result["detected"]})
     return RedirectResponse("/admin/qrs", status_code=302)
 
 
