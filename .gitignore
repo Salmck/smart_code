@@ -6,6 +6,7 @@ venv/
 .DS_Store
 # 运行时数据（SQLite 库、上传文件）
 ordinex.db
+cf.log
 ordinex.db-*
 *.db-wal
 *.db-shm
