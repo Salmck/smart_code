@@ -95,10 +95,46 @@ table.k-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .k-tag.on { background: rgba(22,163,74,.18); color: #4ade80; }
 .k-tag.off { background: rgba(220,38,38,.15); color: #fca5a5; }
 .k-tag.warn { background: rgba(217,119,6,.18); color: #fbbf24; }
-.funnel-step { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
-.funnel-bar { height: 30px; background: var(--brand-grad); border-radius: 6px; min-width: 3px; }
-.funnel-step .lbl { width: 130px; font-size: 13px; color: #b9c0d8; }
-.funnel-step .val { font-weight: 700; }
+.funnel-step { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.funnel-track { flex: 1; height: 26px; background: #141a30; border-radius: 6px; overflow: hidden; min-width: 0; }
+.funnel-bar { height: 100%; background: var(--brand-grad); border-radius: 6px; min-width: 3px; }
+.funnel-step .lbl { width: 110px; flex: 0 0 110px; font-size: 13px; color: #b9c0d8; }
+.funnel-step .val { font-weight: 700; flex: 0 0 auto; min-width: 28px; text-align: right; }
 .muted { color: #8b95b3; font-size: 12px; }
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 12px; margin-bottom: 12px; }
 .form-row label { font-size: 12px; color: #8b95b3; display: block; margin-bottom: 5px; }
+
+/* 页面永不横向滚动；宽内容各自在容器内滚。用 clip 而非 hidden，避免破坏 sticky 顶栏 */
+html, body { max-width: 100%; overflow-x: clip; }
+.k-nav { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+.k-nav::-webkit-scrollbar { height: 0; }
+/* 宽表格在自身容器内横向滚动，不撑破页面 */
+.k-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ================= 手机适配 ================= */
+@media (max-width: 640px) {
+  .k-top { padding: 11px 14px; }
+  .k-nav { padding: 8px 12px; gap: 4px; }
+  .k-nav a { padding: 7px 12px; }               /* 更大点触区 */
+  .k-main { padding: 12px; }
+  .k-h1 { font-size: 18px; }
+  .k-card { padding: 14px; border-radius: 10px; }
+  /* 表单单列铺满，输入框 16px 防 iOS 聚焦缩放 */
+  .form-row { grid-template-columns: 1fr; gap: 10px; }
+  .k-input, .k-select { font-size: 16px; padding: 11px 12px; }
+  /* 宽表格横向滚动：整表变可滚块，单元格不换行 */
+  table.k-table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  table.k-table::-webkit-scrollbar { height: 3px; }
+  .k-table th, .k-table td { padding: 9px 10px; }
+  /* 统计卡两列，指标数字略小 */
+  .k-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { padding: 13px; }
+  .stat .n { font-size: 21px; }
+  /* 表内操作按钮更易点 */
+  .k-btn-sm { padding: 7px 12px; font-size: 12px; }
+  .funnel-step .lbl { width: 92px; flex-basis: 92px; font-size: 12px; }
+}
+
+@media (max-width: 380px) {
+  .k-grid { grid-template-columns: 1fr; }
+}

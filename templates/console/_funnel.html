@@ -23,7 +23,7 @@
   {% for label, val in steps %}
   <div class="funnel-step">
     <span class="lbl">{{ label }}</span>
-    <div class="funnel-bar" style="width:{{ (val / maxv * 260)|round(0,'floor') }}px"></div>
+    <div class="funnel-track"><div class="funnel-bar" style="width:{{ (val / maxv * 100)|round(1) }}%"></div></div>
     <span class="val">{{ val }}</span>
   </div>
   {% endfor %}
