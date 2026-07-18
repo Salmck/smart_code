@@ -6,7 +6,7 @@
 """
 from sqlalchemy import distinct, func
 
-from ..models import Event, EventType, Redemption
+from ..models import Event, EventType, Redemption, Voucher
 
 
 def _apply_filters(q, filters: dict):
@@ -60,12 +60,20 @@ def funnel(db, filters: dict) -> dict:
     confirm = _count(db, filters, EventType.CONFIRM_RESERVATION, Event.customer_id)
     redeem = _count(db, filters, EventType.REDEEM, Event.customer_id)
 
-    # 核销金额：从 Redemption 汇总（非冲正）
-    amount_q = db.query(func.coalesce(func.sum(Redemption.amount), 0)).filter(
-        Redemption.is_reversal == False  # noqa: E712
-    )
+    # 核销金额：Redemption 联 Voucher 取归因字段，与其余指标同口径过滤
+    amount_q = (db.query(func.coalesce(func.sum(Redemption.amount), 0))
+                .join(Voucher, Voucher.id == Redemption.voucher_id)
+                .filter(Redemption.is_reversal == False))  # noqa: E712
     if filters.get("store_id"):
-        amount_q = amount_q.filter(Redemption.store_id == filters["store_id"])
+        amount_q = amount_q.filter(Voucher.store_id == filters["store_id"])
+    if filters.get("growth_action_id"):
+        amount_q = amount_q.filter(Voucher.growth_action_id == filters["growth_action_id"])
+    if filters.get("campaign_id"):
+        amount_q = amount_q.filter(Voucher.campaign_id == filters["campaign_id"])
+    if filters.get("qr_id"):
+        amount_q = amount_q.filter(Voucher.qr_id == filters["qr_id"])
+    if filters.get("channel"):
+        amount_q = amount_q.filter(Voucher.channel == filters["channel"])
     redeem_amount = amount_q.scalar() or 0
 
     return {

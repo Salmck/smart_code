@@ -228,6 +228,11 @@ async def upload_reference(user: AuthUser = Depends(require_admin), db=Depends(g
         result = catalog_service.set_campaign_reference(db, campaign, data, image.filename or "ref.png")
     except ValueError as e:
         return JSONResponse({"detail": str(e)}, status_code=400)
+    except Exception as e:  # 兜底：不让上传流程 500，把原因带回页面便于排查
+        import logging
+        import traceback
+        logging.getLogger("upload").error("参考图处理失败:\n%s", traceback.format_exc())
+        return JSONResponse({"detail": f"参考图处理失败：{type(e).__name__}: {e}"}, status_code=400)
     audit(db, user_id=user.id, role=user.role, store_id=campaign.store_id,
           action="upload_reference", target=f"campaign:{campaign.id}",
           after={"detected": result["detected"]})

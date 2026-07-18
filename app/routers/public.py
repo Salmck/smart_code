@@ -80,12 +80,17 @@ def scan_landing(short_code: str, request: Request, db=Depends(get_db),
     # 已验证过手机号的回头客：显示「查看我的凭证」，避免找不到已领/已约的码
     my_voucher = (claim_service.latest_active_voucher(db, campaign.id, customer_id)
                   if customer_id else None)
+    # 剩余名额 = 库存 - 已生效占用 - 待确认预约（人工确认制下未确认也应占名额，
+    # 否则顾客看到的「剩余」一直不动）
+    pending_cnt = (db.query(Voucher)
+                   .filter_by(campaign_id=campaign.id, status=VoucherStatus.PENDING)
+                   .count())
     resp = templates.TemplateResponse(
         "customer/campaign.html",
         {
             "request": request, "campaign": campaign, "store": store,
             "short_code": short_code, "open_ok": open_ok, "reason": reason,
-            "remaining": max(campaign.stock - campaign.claimed, 0),
+            "remaining": max(campaign.stock - campaign.claimed - pending_cnt, 0),
             "my_voucher": my_voucher,
         },
     )
@@ -232,6 +237,7 @@ def voucher_page(voucher_code: str, request: Request, db=Depends(get_db)):
     reservation = db.get(Reservation, voucher.reservation_id) if voucher.reservation_id else None
 
     log_event(db, event_type=EventType.OPEN_VOUCHER, store_id=voucher.store_id,
+              growth_action_id=voucher.growth_action_id,
               campaign_id=voucher.campaign_id, qr_id=voucher.qr_id,
               customer_id=voucher.customer_id, channel=voucher.channel)
 
@@ -295,6 +301,7 @@ def cancel_reservation(reservation_id: int, db=Depends(get_db),
     except claim_service.ClaimError as e:
         return JSONResponse({"detail": e.message}, status_code=e.status)
     log_event(db, event_type=EventType.CANCEL_RESERVATION, store_id=reservation.store_id,
+              growth_action_id=reservation.growth_action_id,
               campaign_id=reservation.campaign_id, customer_id=customer_id,
               channel=reservation.channel)
     return {"ok": True}

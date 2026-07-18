@@ -4,12 +4,20 @@
 <div class="k-card" style="max-width:360px;margin:60px auto">
   <div class="k-logo" style="font-size:22px;text-align:center;margin-bottom:6px">{{ BRAND_EN }} 无界序</div>
   <div class="muted" style="text-align:center;margin-bottom:20px">{{ PRODUCT_NAME }} · 后台登录</div>
-  <label class="muted">用户名</label>
-  <input id="username" class="k-input" style="margin:6px 0 14px" placeholder="用户名" />
-  <label class="muted">密码</label>
-  <input id="password" class="k-input" type="password" style="margin:6px 0 18px" placeholder="密码" />
-  <button class="k-btn" id="login" style="width:100%">登 录</button>
-  <div class="msg" id="msg"></div>
+  <form id="login-form" autocomplete="on">
+    <label class="muted">用户名</label>
+    <input id="username" name="username" class="k-input" style="margin:6px 0 14px" placeholder="用户名" autocomplete="username" />
+    <label class="muted">密码</label>
+    <div class="pwd-wrap" style="margin:6px 0 18px">
+      <input id="password" name="password" class="k-input" type="password" placeholder="密码" autocomplete="current-password" />
+      <button type="button" class="pwd-eye" id="toggle-pwd" aria-label="显示密码">
+        <svg id="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg id="eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+    <button class="k-btn" id="login" type="submit" style="width:100%">登 录</button>
+    <div class="msg" id="msg"></div>
+  </form>
   <div class="muted" style="margin-top:18px;line-height:1.9;font-size:12px">
     演示账号：<br>管理员 admin / admin123<br>老板 boss / boss123<br>店员 staff / staff123
   </div>
@@ -17,16 +25,33 @@
 {% endblock %}
 {% block script %}
 <script>
-document.getElementById("login").onclick = async () => {
-  const fd = new FormData();
-  fd.append("username", document.getElementById("username").value.trim());
-  fd.append("password", document.getElementById("password").value);
-  const r = await fetch("/api/staff/login", { method: "POST", body: fd });
-  const d = await r.json();
+// 用真 <form> 提交：手机软键盘「前往/Go」也能触发登录（此前无表单按了没反应）
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("login");
   const m = document.getElementById("msg");
-  if (!r.ok) { m.textContent = d.detail; m.className = "msg err"; return; }
-  location.href = d.redirect;
+  btn.disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append("username", document.getElementById("username").value.trim());
+    fd.append("password", document.getElementById("password").value);
+    const r = await fetch("/api/staff/login", { method: "POST", body: fd });
+    const d = await r.json();
+    if (!r.ok) { m.textContent = d.detail; m.className = "msg err"; return; }
+    location.href = d.redirect;
+  } catch (err) {
+    m.textContent = "网络异常，请重试"; m.className = "msg err";
+  } finally {
+    btn.disabled = false;
+  }
+});
+// 密码可见性切换
+document.getElementById("toggle-pwd").onclick = () => {
+  const p = document.getElementById("password");
+  const show = p.type === "password";
+  p.type = show ? "text" : "password";
+  document.getElementById("eye-open").style.display = show ? "none" : "";
+  document.getElementById("eye-off").style.display = show ? "" : "none";
 };
-document.getElementById("password").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("login").click(); });
 </script>
 {% endblock %}

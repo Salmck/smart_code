@@ -55,10 +55,24 @@
 {% include "console/_funnel.html" %}
 
 <div class="k-card">
-  <div style="font-weight:600;margin-bottom:8px">关联二维码（{{ qrs|length }}）</div>
-  <table class="k-table">
-    <tr><th>名称</th><th>渠道</th><th>内容编号</th><th>短码</th></tr>
-    {% for q in qrs %}<tr><td>{{ q.name }}</td><td>{{ q.channel }}</td><td>{{ q.content_no }}</td><td>{{ q.short_code }}</td></tr>{% endfor %}
-  </table>
+  <div style="font-weight:600;margin-bottom:8px">关联二维码（按活动分组）</div>
+  {% if not campaigns %}<div class="muted">暂无活动</div>{% endif %}
+  {% for c in campaigns %}
+  {% set cqrs = qrs|selectattr('campaign_id','equalto',c.id)|list %}
+  <details class="qr-fold" style="margin-bottom:8px">
+    <summary>{{ c.name }} <span class="muted">· {{ cqrs|length }} 个平台码</span></summary>
+    {% if cqrs %}
+    {% for q in cqrs %}
+    <div class="qr-row">
+      <span class="k-tag" style="flex:0 0 auto">{{ q.channel }}</span>
+      <code style="flex:1;min-width:0;color:#cdd5ee">{{ q.short_code }}</code>
+      <a class="k-tag" href="/qr/{{ q.id }}/marked">平台标</a>
+      <a class="k-tag" href="/qr/{{ q.id }}/png">纯码</a>
+      <a class="k-tag" href="/q/{{ q.short_code }}" target="_blank">预览</a>
+    </div>
+    {% endfor %}
+    {% else %}<div class="muted" style="padding:8px 4px">该活动尚未生成二维码（待审核通过）</div>{% endif %}
+  </details>
+  {% endfor %}
 </div>
 {% endblock %}

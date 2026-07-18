@@ -27,19 +27,22 @@
     <button class="k-btn">创建增长动作</button>
   </form>
 </div>
+{% for row in rows %}
 <div class="k-card">
-  <table class="k-table">
-    <tr><th>动作</th><th>门店</th><th>假设</th><th>指标/阈值</th><th>执行</th><th>结果</th><th></th></tr>
-    {% for row in rows %}
-    <tr>
-      <td>{{ row.a.name }}</td><td>{{ row.store.name if row.store }}</td>
-      <td class="muted" style="max-width:220px">{{ row.a.hypothesis }}</td>
-      <td>{{ row.a.success_metric }} ≥ {{ row.a.success_threshold }}</td>
-      <td><span class="k-tag">{{ row.a.status }}</span></td>
-      <td><span class="k-tag {{ 'on' if row.a.result=='success' else ('off' if row.a.result=='failed' else 'warn') }}">{{ row.a.result }}</span></td>
-      <td><a class="k-tag" href="/admin/actions/{{ row.a.id }}">详情</a></td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="row">
+    <b style="font-size:14px">{{ row.a.name }}</b>
+    <span class="muted">{{ row.store.name if row.store }}</span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="k-tag">{{ {'draft':'草稿','running':'进行中','observed':'观察结束','archived':'已归档'}.get(row.a.status,row.a.status) }}</span>
+    <span class="k-tag {{ 'on' if row.a.result=='success' else ('off' if row.a.result=='failed' else 'warn') }}">
+      {{ {'undecided':'待判定','success':'验证成功','failed':'验证失败','insufficient':'样本不足'}.get(row.a.result,row.a.result) }}</span>
+  </div>
+  {% if row.a.hypothesis %}<div class="muted" style="margin-top:8px;line-height:1.7">假设：{{ row.a.hypothesis }}</div>{% endif %}
+  <div class="row" style="margin-top:10px">
+    <span class="muted">指标：{{ {'scan':'独立扫码','reserve':'预约人数','redeem':'核销人数'}.get(row.a.success_metric,row.a.success_metric) }} ≥ {{ row.a.success_threshold }} · 样本 ≥ {{ row.a.min_sample }}</span>
+    <span class="spacer" style="flex:1"></span>
+    <a class="k-btn k-btn-sm k-btn-ghost" href="/admin/actions/{{ row.a.id }}" style="text-decoration:none">查看详情与判定 →</a>
+  </div>
 </div>
+{% endfor %}
 {% endblock %}

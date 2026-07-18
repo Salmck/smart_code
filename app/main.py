@@ -20,6 +20,21 @@ logging.basicConfig(
 app = FastAPI(title="Ordinex 专属增长码系统")
 
 
+@app.middleware("http")
+async def https_redirect(request, call_next):
+    """公网 http 访问自动 301 到 https（本机开发地址除外）。
+
+    需 uvicorn --proxy-headers（run_local 脚本已带），使 request.url.scheme
+    反映隧道/反代传来的 X-Forwarded-Proto。
+    """
+    host = request.url.hostname or ""
+    if (request.url.scheme == "http"
+            and host not in ("localhost", "127.0.0.1", "0.0.0.0")):
+        from fastapi.responses import RedirectResponse as _RR
+        return _RR(str(request.url.replace(scheme="https")), status_code=301)
+    return await call_next(request)
+
+
 @app.on_event("startup")
 def _startup():
     init_db()

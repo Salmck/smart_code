@@ -110,6 +110,7 @@ def verify_voucher(db, *, raw_code: str, staff_store_id: int, staff_role: str,
         info["redeemable"] = True
 
     log_event(db, event_type=EventType.VERIFY_VOUCHER, store_id=voucher.store_id,
+              growth_action_id=voucher.growth_action_id,
               campaign_id=voucher.campaign_id, qr_id=voucher.qr_id,
               customer_id=voucher.customer_id, channel=voucher.channel,
               content_no=voucher.content_no, material_no=voucher.material_no)
@@ -169,6 +170,7 @@ def redeem(db, *, voucher_id: int, staff_id: int, staff_store_id: int,
             reservation.status = ReservationStatus.COMPLETED
 
     log_event(db, event_type=EventType.REDEEM, store_id=voucher.store_id,
+              growth_action_id=voucher.growth_action_id,
               campaign_id=voucher.campaign_id, qr_id=voucher.qr_id,
               customer_id=voucher.customer_id, channel=voucher.channel,
               content_no=voucher.content_no, material_no=voucher.material_no,

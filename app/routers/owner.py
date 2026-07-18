@@ -98,6 +98,9 @@ async def create_package(user: AuthUser = Depends(require_owner), db=Depends(get
         raise HTTPException(status_code=404, detail="请选择本店的增长策略")
     if float(price) <= 0:
         return JSONResponse({"detail": "活动价必须大于 0"}, status_code=400)
+    people = people.strip()
+    if people.isdigit():
+        people += "人"          # 「适合4」→「适合4人」
     p = catalog_service.create_package(
         db, store_id=sid, growth_action_id=a.id,
         package_title=sanitize_text(package_title, 128),
@@ -121,6 +124,49 @@ async def create_package(user: AuthUser = Depends(require_owner), db=Depends(get
                 db.commit()
     audit(db, user_id=user.id, role=user.role, store_id=sid, action="create_package",
           target=f"package:{p.id}", after={"title": p.package_title})
+    return RedirectResponse("/owner/packages", status_code=302)
+
+
+@router.post("/packages/{package_id}/edit")
+async def edit_package(package_id: int, user: AuthUser = Depends(require_owner),
+                       db=Depends(get_db),
+                       package_title: str = Form(...), package_content: str = Form(...),
+                       people: str = Form(""), original_price: float = Form(0),
+                       price: float = Form(...), package_desc: str = Form(""),
+                       usage_rules: str = Form(""), supports_room: str = Form(""),
+                       image: UploadFile | None = File(None)):
+    sid = _sid(user)
+    p = db.get(Package, package_id)
+    if not p or p.store_id != sid:
+        raise HTTPException(status_code=404, detail="套餐不存在")
+    if float(price) <= 0:
+        return JSONResponse({"detail": "活动价必须大于 0"}, status_code=400)
+    people = people.strip()
+    if people.isdigit():
+        people += "人"
+    before = {"title": p.package_title, "price": p.price}
+    catalog_service.update_package(
+        db, p, package_title=sanitize_text(package_title, 128),
+        package_content=sanitize_text(package_content), people=people,
+        original_price=float(original_price), price=float(price),
+        package_desc=sanitize_text(package_desc), usage_rules=sanitize_text(usage_rules),
+        extra={"supports_room": bool(supports_room)})
+    if image and image.filename:
+        import os
+        from ..config import settings as _s
+        ext = os.path.splitext(image.filename)[1].lower() or ".png"
+        if ext in (".png", ".jpg", ".jpeg", ".webp"):
+            data = await image.read()
+            if len(data) <= 8 * 1024 * 1024:
+                os.makedirs(_s.UPLOAD_DIR, exist_ok=True)
+                fname = f"pkg_{p.id}{ext}"
+                with open(os.path.join(_s.UPLOAD_DIR, fname), "wb") as f:
+                    f.write(data)
+                p.main_image = f"/uploads/{fname}"
+                db.commit()
+    audit(db, user_id=user.id, role=user.role, store_id=sid, action="edit_package",
+          target=f"package:{p.id}", before=before,
+          after={"title": p.package_title, "price": p.price})
     return RedirectResponse("/owner/packages", status_code=302)
 
 
@@ -221,6 +267,11 @@ async def upload_reference(user: AuthUser = Depends(require_owner), db=Depends(g
         result = set_campaign_reference(db, campaign, data, image.filename or "ref.png")
     except ValueError as e:
         return JSONResponse({"detail": str(e)}, status_code=400)
+    except Exception as e:  # 兜底：不让上传流程 500，把原因带回页面便于排查
+        import logging
+        import traceback
+        logging.getLogger("upload").error("参考图处理失败:\n%s", traceback.format_exc())
+        return JSONResponse({"detail": f"参考图处理失败：{type(e).__name__}: {e}"}, status_code=400)
     audit(db, user_id=user.id, role=user.role, store_id=sid, action="upload_reference",
           target=f"campaign:{campaign.id}", after={"detected": result["detected"]})
     return RedirectResponse("/owner/qrs", status_code=302)
