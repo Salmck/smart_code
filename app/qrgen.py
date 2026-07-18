@@ -203,16 +203,35 @@ def composite_into_reference(ref_bytes: bytes, box, code_url: str,
                              platform: str = "", color: str = "") -> bytes:
     """把真码贴到参考图中识别出的二维码区域，替换占位码。
 
-    区域够大（≥180px）时贴中心平台标版本；过小则贴纯码保证可扫。
+    检测框只框住原码的黑色模块区，原码外围还有静区（白边），直接按框贴会
+    露出原码边缘。做法：以框中心为基准，外扩 14% 刷白圆角底（盖住原码及
+    其静区），再把新码铺满该区域（新码自带内边距，模块尺寸与原码相近）。
+    区域够大（≥180px）时贴中心平台标版本；过小贴纯码保证可扫。
     """
     ref = Image.open(io.BytesIO(ref_bytes)).convert("RGB")
+    rw, rh = ref.size
     x, y, w, h = box
-    if platform and min(w, h) >= 180:
+    # 以检测框中心为基准的外扩正方形（二维码本为正方形）
+    side = max(w, h)
+    margin = max(int(side * 0.14), 8)
+    out = side + 2 * margin
+    cx, cy = x + w // 2, y + h // 2
+    x0 = max(cx - out // 2, 0)
+    y0 = max(cy - out // 2, 0)
+    x1 = min(x0 + out, rw)
+    y1 = min(y0 + out, rh)
+    out_w, out_h = x1 - x0, y1 - y0
+
+    # 白底垫层：完整盖住原码与其静区
+    draw = ImageDraw.Draw(ref)
+    draw.rounded_rectangle([x0, y0, x1, y1], radius=max(int(out * 0.03), 4), fill="white")
+
+    if platform and min(out_w, out_h) >= 180:
         code_png = png_with_platform(code_url, platform, color)
     else:
         code_png = png_bytes(code_url)
-    code_img = Image.open(io.BytesIO(code_png)).convert("RGB").resize((w, h))
-    ref.paste(code_img, (x, y))
+    code_img = Image.open(io.BytesIO(code_png)).convert("RGB").resize((out_w, out_h))
+    ref.paste(code_img, (x0, y0))
     buf = io.BytesIO()
     ref.save(buf, format="PNG")
     return buf.getvalue()
