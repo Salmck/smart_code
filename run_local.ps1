@@ -1,6 +1,6 @@
-# Ordinex 一键启动（Windows PowerShell）
+﻿# Ordinex 一键启动（Windows PowerShell）
 # 同时启动 cloudflared 隧道 + 服务，自动抓取公网地址填入 PUBLIC_BASE_URL。
-# 用法：右键"使用 PowerShell 运行"，或在终端执行  powershell -ExecutionPolicy Bypass -File run_local.ps1
+# 用法：powershell -ExecutionPolicy Bypass -File run_local.ps1
 # 前提：已安装 cloudflared，并已激活 Python 环境（conda activate ordinex 或 venv）
 
 $ErrorActionPreference = "Stop"
@@ -14,8 +14,7 @@ if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) {
 
 # 2) 后台启动隧道，日志写入 cf.log（cloudflared 的地址打印在 stderr）
 Remove-Item cf.log -ErrorAction SilentlyContinue
-$cf = Start-Process cloudflared -ArgumentList "tunnel","--url","http://localhost:$Port" `
-      -RedirectStandardError "cf.log" -PassThru -WindowStyle Hidden
+$cf = Start-Process cloudflared -ArgumentList "tunnel","--url","http://localhost:$Port" -RedirectStandardError "cf.log" -PassThru -WindowStyle Hidden
 Write-Host "cloudflared 已启动 (PID $($cf.Id))，等待分配公网地址 ..."
 
 # 3) 轮询日志抓取 trycloudflare 地址（最多等 30 秒）
@@ -23,8 +22,7 @@ $url = $null
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 1
     if (Test-Path cf.log) {
-        $m = Select-String -Path cf.log -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" |
-             Select-Object -First 1
+        $m = Select-String -Path cf.log -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
         if ($m) { $url = $m.Matches[0].Value; break }
     }
 }
@@ -46,7 +44,8 @@ Write-Host ""
 
 try {
     uvicorn app.main:app --host 0.0.0.0 --port $Port
-} finally {
+}
+finally {
     Stop-Process -Id $cf.Id -ErrorAction SilentlyContinue
     Write-Host "已停止隧道"
 }
