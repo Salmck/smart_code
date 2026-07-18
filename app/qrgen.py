@@ -68,13 +68,30 @@ def _hex_to_rgb(h: str) -> tuple:
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def png_with_platform(url: str, platform: str, color: str) -> bytes:
-    """中间签 logo 式平台码：码中心放平台色圆角徽章 + 平台名（类似微信中心 logo）。
+# 平台官方图标目录：放入「{平台名}.png」（如 抖音.png、微信朋友圈.png）即自动
+# 用图标做码中心标；未放置的平台回退为平台色文字徽章。
+# 官方 logo 有商标权，请自行从各平台品牌资源站下载，本项目不内置分发。
+BRAND_ICON_DIR = os.path.join("static", "brand_icons")
 
-    用最高容错等级 H（可遮挡约 30%），中心徽章控制在边长 ~26%，遮挡面积 ~7%，
-    扫码识别不受影响。
+
+def _find_brand_icon(platform: str):
+    for ext in (".png", ".jpg", ".jpeg", ".webp"):
+        p = os.path.join(BRAND_ICON_DIR, platform + ext)
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def png_with_platform(url: str, platform: str, color: str) -> bytes:
+    """中间签 logo 式平台码。
+
+    中心优先使用 static/brand_icons/{平台名}.png 的官方图标（用户自备），
+    否则用平台色圆角徽章 + 平台名文字。用最高容错等级 H；中心徽章
+    取边长 22%、白边 12%——经 zxing 工业级解码器对长域名+全部平台
+    实测的稳定参数；box_size 16 保证输出 ~600px（低分辨率显著降低
+    中心带标码的解码率）。
     """
-    qr = qrcode.QRCode(box_size=10, border=2,
+    qr = qrcode.QRCode(box_size=16, border=2,
                        error_correction=qrcode.constants.ERROR_CORRECT_H)
     qr.add_data(url)
     qr.make(fit=True)
@@ -82,14 +99,35 @@ def png_with_platform(url: str, platform: str, color: str) -> bytes:
     w, h = img.size
     draw = ImageDraw.Draw(img)
 
-    badge = int(w * 0.26)
-    pad = int(badge * 0.10)           # 白色安全边，把徽章和码点隔开
+    badge = int(w * 0.22)
+    pad = int(badge * 0.12)           # 白色安全边，把徽章和码点隔开
     x0 = (w - badge) // 2
     y0 = (h - badge) // 2
     r = int(badge * 0.22)
-    # 白底垫层（略大）+ 平台色圆角徽章
+    # 白底垫层（略大），把徽章和码点隔开
     draw.rounded_rectangle([x0 - pad, y0 - pad, x0 + badge + pad, y0 + badge + pad],
                            radius=r + pad, fill="white")
+
+    # 优先：官方图标文件（圆角裁切后贴入）
+    icon_path = _find_brand_icon(platform)
+    if icon_path:
+        try:
+            icon = Image.open(icon_path).convert("RGBA")
+            icon = icon.resize((badge, badge))
+            mask = Image.new("L", (badge, badge), 0)
+            ImageDraw.Draw(mask).rounded_rectangle([0, 0, badge, badge], radius=r, fill=255)
+            # 图标自身透明区域与圆角裁切叠加
+            alpha = icon.getchannel("A").point(lambda a: a)
+            from PIL import ImageChops
+            mask = ImageChops.multiply(mask, alpha)
+            img.paste(icon.convert("RGB"), (x0, y0), mask)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            return buf.getvalue()
+        except Exception:
+            pass  # 图标文件损坏则回退文字徽章
+
+    # 回退：平台色圆角徽章 + 平台名文字
     draw.rounded_rectangle([x0, y0, x0 + badge, y0 + badge],
                            radius=r, fill=_hex_to_rgb(color))
 
