@@ -66,3 +66,9 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    from fastapi.responses import FileResponse
+    return FileResponse("static/favicon.png", media_type="image/png")
