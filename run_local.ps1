@@ -6,6 +6,16 @@
 $ErrorActionPreference = "Stop"
 $Port = 8000
 
+# 0) 清理占用端口的残留进程（旧进程跑旧代码会导致新功能 404/422）
+$stale = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+if ($stale) {
+    $stale | ForEach-Object {
+        Write-Host "端口 $Port 被 PID $($_.OwningProcess) 占用，正在结束旧进程 ..." -ForegroundColor Yellow
+        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 1
+}
+
 # 1) 检查 cloudflared
 if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) {
     Write-Host "未找到 cloudflared，请先安装：winget install Cloudflare.cloudflared" -ForegroundColor Red

@@ -5,6 +5,16 @@
 set -euo pipefail
 PORT="${PORT:-8000}"
 
+# 清理占用端口的残留进程（旧进程跑旧代码会导致新功能 404/422）
+if command -v lsof >/dev/null 2>&1; then
+  STALE=$(lsof -ti tcp:"$PORT" 2>/dev/null || true)
+  if [ -n "$STALE" ]; then
+    echo "端口 $PORT 被占用（PID $STALE），结束旧进程 ..."
+    kill -9 $STALE 2>/dev/null || true
+    sleep 1
+  fi
+fi
+
 if ! command -v cloudflared >/dev/null 2>&1; then
   echo "未找到 cloudflared。安装：brew install cloudflared（Mac）或见 https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
   exit 1
