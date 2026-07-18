@@ -116,6 +116,7 @@ div.c-hero { aspect-ratio: 16/10; }
 .stat .n.brand { background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .stat .l { font-size: 12px; color: #8b95b3; margin-top: 4px; }
 /* KPI 图标卡 */
+.stat-grid { margin-bottom: 14px; }
 .stat-grid .stat { display: flex; align-items: center; gap: 12px; }
 .stat-badge { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 11px;
   display: flex; align-items: center; justify-content: center; }
@@ -195,10 +196,14 @@ table.k-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 /* 页面永不横向滚动；宽内容各自在容器内滚。用 clip 而非 hidden，避免破坏 sticky 顶栏 */
 html, body { max-width: 100%; overflow-x: clip; }
-.k-nav { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+/* 横向滚动区加固：overscroll-behavior 防滚动链劫持；
+   去掉已废弃的 -webkit-overflow-scrolling（部分安卓 WebView 上会造成滚动冻结） */
+.k-nav { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap;
+  overscroll-behavior-x: contain; touch-action: pan-x pan-y; }
 .k-nav::-webkit-scrollbar { height: 0; }
 /* 宽表格在自身容器内横向滚动，不撑破页面（base_console 的脚本自动包裹） */
-.k-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+.k-table-wrap { width: 100%; overflow-x: auto;
+  overscroll-behavior-x: contain; touch-action: pan-x pan-y; }
 .k-table-wrap::-webkit-scrollbar { height: 3px; }
 /* 预约卡片 */
 .res-meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #cdd5ee; margin-top: 10px; }

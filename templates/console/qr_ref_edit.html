@@ -3,17 +3,27 @@
 {% block subtitle %}参考图校准{% endblock %}
 {% block content %}
 <h1 class="k-h1">校准二维码替换区域</h1>
-<div class="muted" style="margin-bottom:12px;line-height:1.8">
-  拖动蓝框对准海报里的<b style="color:#cdd5ee">原二维码（连同它的白边一起框进去）</b>，
-  拖右下角手柄调整大小，保存后合成的新码会完整覆盖此区域。</div>
+<div class="muted" style="margin-bottom:10px;line-height:1.8">
+  拖动蓝框对准海报里的<b style="color:#cdd5ee">原二维码（连同白边一起框进去）</b>，拖右下角圆点调大小（保持正方形）。<br>
+  手机双指捏合缩放、单指拖空白处平移；电脑滚轮缩放、按住空白处拖动平移。</div>
 
-<div class="k-card" style="padding:10px">
-  <div id="stage" style="position:relative;user-select:none;touch-action:none;line-height:0;overflow:hidden;border-radius:8px">
-    <img id="ref-img" src="/uploads/{{ campaign.ref_image }}?t={{ campaign.id }}" style="width:100%;display:block;border-radius:8px" draggable="false">
-    <div id="sel" style="position:absolute;border:2px solid #00D4FF;background:rgba(0,212,255,.14);
-         border-radius:4px;cursor:move;box-shadow:0 0 0 9999px rgba(0,0,0,.35)">
-      <div id="handle" style="position:absolute;right:-13px;bottom:-13px;width:26px;height:26px;
-           background:#00D4FF;border-radius:50%;cursor:nwse-resize;border:3px solid #0B1020"></div>
+<div class="row" style="margin-bottom:10px;gap:8px">
+  <button class="k-btn k-btn-sm k-btn-ghost" id="z-out">－ 缩小</button>
+  <button class="k-btn k-btn-sm k-btn-ghost" id="z-in">＋ 放大</button>
+  <button class="k-btn k-btn-sm k-btn-ghost" id="z-fit">适配</button>
+  <span class="muted" id="z-val">100%</span>
+</div>
+
+<div class="k-card" style="padding:8px">
+  <div id="viewport" style="position:relative;overflow:hidden;border-radius:8px;background:#0a0e1c;
+       touch-action:none;user-select:none;-webkit-user-select:none">
+    <div id="stage" style="position:absolute;left:0;top:0;transform-origin:0 0;line-height:0">
+      <img id="ref-img" src="/uploads/{{ campaign.ref_image }}?t={{ campaign.id }}" draggable="false" style="display:block">
+      <div id="sel" style="position:absolute;border:2px solid #00D4FF;background:rgba(0,212,255,.14);
+           border-radius:4px;cursor:move">
+        <div id="handle" style="position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;
+             background:#00D4FF;border-radius:50%;cursor:nwse-resize;border:3px solid #0B1020"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -38,66 +48,136 @@ const img = document.getElementById("ref-img");
 const sel = document.getElementById("sel");
 const handle = document.getElementById("handle");
 const stage = document.getElementById("stage");
-let scale = 1;   // 显示像素 / 原图像素
+const vp = document.getElementById("viewport");
 
-function applyBox(bx) {  // bx 为原图坐标 [x,y,w,h]
-  sel.style.left = (bx[0]*scale) + "px";
-  sel.style.top = (bx[1]*scale) + "px";
-  sel.style.width = (bx[2]*scale) + "px";
-  sel.style.height = (bx[3]*scale) + "px";
+let base = 1;            // 内层像素 / 原图像素（适配宽度）
+let Z = 1, tx = 0, ty = 0;   // 缩放与平移
+let innerW = 0, innerH = 0;  // 内层（Z=1）尺寸
+
+function applyTransform() {
+  // 平移范围钳制：内容小于视口时贴 0，大于时不留白
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  tx = Math.min(0, Math.max(tx, vw - innerW * Z));
+  ty = Math.min(0, Math.max(ty, vh - innerH * Z));
+  stage.style.transform = `translate(${tx}px,${ty}px) scale(${Z})`;
+  document.getElementById("z-val").textContent = Math.round(Z * 100) + "%";
 }
-function currentBox() {  // 读回原图坐标
-  return [Math.round(sel.offsetLeft/scale), Math.round(sel.offsetTop/scale),
-          Math.round(sel.offsetWidth/scale), Math.round(sel.offsetHeight/scale)];
+function setZoom(nz, cx, cy) {  // 围绕视口内点 (cx,cy) 缩放
+  nz = Math.min(Math.max(nz, 1), 6);
+  tx = cx - (cx - tx) * nz / Z;
+  ty = cy - (cy - ty) * nz / Z;
+  Z = nz;
+  applyTransform();
+}
+function applyBox(bx) {          // bx: 原图坐标 [x,y,w,h]，强制正方形
+  const side = Math.max(bx[2], bx[3]);
+  sel.style.left = (bx[0] * base) + "px";
+  sel.style.top = (bx[1] * base) + "px";
+  sel.style.width = (side * base) + "px";
+  sel.style.height = (side * base) + "px";
+}
+function currentBox() {          // 读回原图坐标（正方形）
+  const s = Math.round(sel.offsetWidth / base);
+  return [Math.round(sel.offsetLeft / base), Math.round(sel.offsetTop / base), s, s];
 }
 function init() {
-  scale = img.clientWidth / img.naturalWidth;
+  const vw = vp.parentElement.clientWidth - 16;
+  base = vw / img.naturalWidth;
+  innerW = vw;
+  innerH = img.naturalHeight * base;
+  img.style.width = innerW + "px";
+  vp.style.width = innerW + "px";
+  vp.style.height = Math.min(innerH, window.innerHeight * 0.62) + "px";
+  Z = 1; tx = 0; ty = 0;
   if (initBox) applyBox(initBox);
-  else {  // 未识别到：给一个居中的默认框让用户手动框
+  else {
     const s = Math.round(img.naturalWidth * 0.3);
-    applyBox([Math.round((img.naturalWidth-s)/2), Math.round((img.naturalHeight*0.55)), s, s]);
+    applyBox([Math.round((img.naturalWidth - s) / 2), Math.round(img.naturalHeight * 0.55), s, s]);
   }
+  applyTransform();
 }
-if (img.complete) init(); else img.onload = init;
-window.addEventListener("resize", () => { const b = currentBox(); scale = img.clientWidth/img.naturalWidth; applyBox(b); });
+if (img.complete && img.naturalWidth) init(); else img.onload = init;
+window.addEventListener("resize", () => { const b = currentBox(); init(); applyBox(b); });
 
-// 拖动 / 缩放（Pointer Events，手机触摸可用）
-let mode = null, sx=0, sy=0, ox=0, oy=0, ow=0, oh=0;
-function down(e, m) {
+/* ---------- 指针交互：框拖动/缩放、画布平移、双指捏合 ---------- */
+let mode = null, sx = 0, sy = 0, ox = 0, oy = 0, ow = 0;
+const pts = new Map();           // 活动指针（捏合用）
+let pinchD = 0, pinchZ = 1;
+
+function selDown(e, m) {
   mode = m; sx = e.clientX; sy = e.clientY;
-  ox = sel.offsetLeft; oy = sel.offsetTop; ow = sel.offsetWidth; oh = sel.offsetHeight;
-  e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
-  e.preventDefault(); e.stopPropagation();
+  ox = sel.offsetLeft; oy = sel.offsetTop; ow = sel.offsetWidth;
+  e.stopPropagation(); e.preventDefault();
 }
-sel.addEventListener("pointerdown", e => { if (e.target !== handle) down(e, "move"); });
-handle.addEventListener("pointerdown", e => down(e, "resize"));
-window.addEventListener("pointermove", e => {
-  if (!mode) return;
-  const dx = e.clientX - sx, dy = e.clientY - sy;
-  const W = img.clientWidth, H = img.clientHeight;
-  if (mode === "move") {
-    sel.style.left = Math.min(Math.max(ox+dx, 0), W - sel.offsetWidth) + "px";
-    sel.style.top  = Math.min(Math.max(oy+dy, 0), H - sel.offsetHeight) + "px";
-  } else {
-    const nw = Math.min(Math.max(ow+dx, 24), W - sel.offsetLeft);
-    const nh = Math.min(Math.max(oh+dy, 24), H - sel.offsetTop);
-    sel.style.width = nw + "px"; sel.style.height = nh + "px";
+sel.addEventListener("pointerdown", e => { if (e.target !== handle) selDown(e, "move"); });
+handle.addEventListener("pointerdown", e => selDown(e, "resize"));
+
+vp.addEventListener("pointerdown", e => {
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pts.size === 2) {          // 进入捏合
+    const [a, b] = [...pts.values()];
+    pinchD = Math.hypot(a.x - b.x, a.y - b.y); pinchZ = Z;
+    mode = "pinch";
+  } else if (!mode) {            // 空白处单指/鼠标 → 平移
+    mode = "pan"; sx = e.clientX; sy = e.clientY; ox = tx; oy = ty;
   }
 });
-window.addEventListener("pointerup", () => mode = null);
+window.addEventListener("pointermove", e => {
+  if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!mode) return;
+  if (mode === "pinch" && pts.size === 2) {
+    const [a, b] = [...pts.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    const r = vp.getBoundingClientRect();
+    setZoom(pinchZ * d / pinchD, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+    return;
+  }
+  const dx = e.clientX - sx, dy = e.clientY - sy;
+  if (mode === "pan") { tx = ox + dx; ty = oy + dy; applyTransform(); return; }
+  // 框操作：屏幕位移换算到内层坐标要除以 Z
+  const idx = dx / Z, idy = dy / Z;
+  if (mode === "move") {
+    sel.style.left = Math.min(Math.max(ox + idx, 0), innerW - sel.offsetWidth) + "px";
+    sel.style.top = Math.min(Math.max(oy + idy, 0), innerH - sel.offsetHeight) + "px";
+  } else if (mode === "resize") {
+    // 正方形：取两方向位移较大者
+    let side = ow + Math.max(idx, idy);
+    side = Math.max(side, 24);
+    side = Math.min(side, innerW - sel.offsetLeft, innerH - sel.offsetTop);
+    sel.style.width = side + "px"; sel.style.height = side + "px";
+  }
+});
+window.addEventListener("pointerup", e => {
+  pts.delete(e.pointerId);
+  if (pts.size < 2 && mode === "pinch") mode = null;
+  if (pts.size === 0) mode = null;
+});
+window.addEventListener("pointercancel", e => { pts.delete(e.pointerId); mode = null; });
 
-document.getElementById("save").onclick = async () => {
+// 电脑端：滚轮缩放（围绕光标）
+vp.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = vp.getBoundingClientRect();
+  setZoom(Z * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+document.getElementById("z-in").onclick = () => setZoom(Z * 1.3, vp.clientWidth / 2, vp.clientHeight / 2);
+document.getElementById("z-out").onclick = () => setZoom(Z / 1.3, vp.clientWidth / 2, vp.clientHeight / 2);
+document.getElementById("z-fit").onclick = () => { Z = 1; tx = 0; ty = 0; applyTransform(); };
+
+/* ---------- 保存 / 预览 ---------- */
+async function saveBox() {
   const b = currentBox();
-  const r = await fetch(`/qr/ref/${CID}/box?x=${b[0]}&y=${b[1]}&w=${b[2]}&h=${b[3]}`, {method:"POST"});
+  const r = await fetch(`/qr/ref/${CID}/box?x=${b[0]}&y=${b[1]}&w=${b[2]}&h=${b[3]}`, { method: "POST" });
+  return r.ok;
+}
+document.getElementById("save").onclick = async () => {
   const m = document.getElementById("msg");
-  if (r.ok) { m.textContent = "✅ 已保存，海报版将按此区域合成"; }
-  else { const d = await r.json(); m.textContent = "保存失败：" + (d.detail||r.status); }
+  m.textContent = (await saveBox()) ? "✅ 已保存，海报版将按此区域合成" : "保存失败";
 };
 const pv = document.getElementById("preview");
 if (pv) pv.onclick = async (e) => {
   e.preventDefault();
-  const b = currentBox();
-  await fetch(`/qr/ref/${CID}/box?x=${b[0]}&y=${b[1]}&w=${b[2]}&h=${b[3]}`, {method:"POST"});
+  await saveBox();
   document.getElementById("msg").textContent = "✅ 已保存";
   document.getElementById("preview-box").style.display = "block";
   document.getElementById("preview-img").src = `/qr/${FIRST_QR}/poster?t=` + Date.now();

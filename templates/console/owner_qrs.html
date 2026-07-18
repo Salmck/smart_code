@@ -46,10 +46,10 @@
         <td><span class="k-tag">{{ qr.channel }}</span></td>
         <td><code>{{ qr.short_code }}</code></td>
         <td style="white-space:nowrap">
+          {% if g.campaign.ref_qr_box %}<a class="k-tag" style="background:rgba(0,212,255,.15);color:#7EE7FF" href="/qr/{{ qr.id }}/poster">海报版</a>{% endif %}
           <a class="k-tag" href="/qr/{{ qr.id }}/marked">平台标PNG</a>
           <a class="k-tag" href="/qr/{{ qr.id }}/png">纯码PNG</a>
           <a class="k-tag" href="/qr/{{ qr.id }}/svg">SVG</a>
-          {% if g.campaign.ref_qr_box %}<a class="k-tag" href="/qr/{{ qr.id }}/poster">海报版</a>{% endif %}
           <a class="k-tag" href="/q/{{ qr.short_code }}" target="_blank">预览</a>
           <button class="k-tag" style="border:none;cursor:pointer" onclick="copyLink('{{ qr.short_code }}')">复制短链</button>
         </td>
