@@ -210,10 +210,12 @@ def composite_into_reference(ref_bytes: bytes, box, code_url: str,
     """
     ref = Image.open(io.BytesIO(ref_bytes)).convert("RGB")
     rw, rh = ref.size
-    x, y, w, h = box
-    # 以检测框中心为基准的外扩正方形（二维码本为正方形）
+    x, y, w, h = box[0], box[1], box[2], box[3]
+    manual = len(box) > 4 and box[4] == "manual"
+    # 以检测框中心为基准的外扩正方形（二维码本为正方形）。
+    # 自动检测框只含模块区 → 外扩 14% 盖静区；手动框已含白边 → 仅 3% 保险。
     side = max(w, h)
-    margin = max(int(side * 0.14), 8)
+    margin = max(int(side * (0.03 if manual else 0.14)), 6)
     out = side + 2 * margin
     cx, cy = x + w // 2, y + h // 2
     x0 = max(cx - out // 2, 0)

@@ -21,6 +21,45 @@ from ..qrgen import (
 router = APIRouter(prefix="/qr")
 
 
+# ---------- 参考图二维码区域校准（须在 /{qr_id}/{fmt} 之前注册）----------
+@router.get("/ref/{campaign_id}")
+def ref_edit_page(campaign_id: int, request: Request,
+                  user: AuthUser = Depends(require_staff), db=Depends(get_db)):
+    """手动校准海报中二维码替换区域：拖动/缩放选框，保证完整覆盖原码。"""
+    from ..render import templates
+    campaign = db.get(Campaign, campaign_id)
+    if not campaign or not campaign.ref_image:
+        raise HTTPException(status_code=404, detail="该活动未上传参考图")
+    assert_store_access(user, campaign.store_id)
+    first_qr = db.query(QRPlacement).filter_by(campaign_id=campaign.id).first()
+    back = "/admin/qrs" if user.role == "admin" else "/owner/qrs"
+    return templates.TemplateResponse(
+        "console/qr_ref_edit.html",
+        {"request": request, "user": user, "campaign": campaign,
+         "box": campaign.ref_qr_box or None,
+         "first_qr_id": first_qr.id if first_qr else None, "back": back})
+
+
+@router.post("/ref/{campaign_id}/box")
+def ref_save_box(campaign_id: int, user: AuthUser = Depends(require_staff),
+                 db=Depends(get_db), x: int = 0, y: int = 0, w: int = 0, h: int = 0):
+    from ..audit import audit
+    campaign = db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    assert_store_access(user, campaign.store_id)
+    if w < 20 or h < 20:
+        raise HTTPException(status_code=400, detail="区域太小")
+    before = campaign.ref_qr_box
+    # 第 5 位标记 manual：手动框已含白边，合成时只做小幅外扩
+    campaign.ref_qr_box = [int(x), int(y), int(w), int(h), "manual"]
+    db.commit()
+    audit(db, user_id=user.id, role=user.role, store_id=campaign.store_id,
+          action="adjust_ref_box", target=f"campaign:{campaign.id}",
+          before={"box": before}, after={"box": campaign.ref_qr_box})
+    return {"ok": True, "box": campaign.ref_qr_box}
+
+
 @router.get("/{qr_id}/{fmt}")
 def download(qr_id: int, fmt: str, request: Request,
              user: AuthUser = Depends(require_staff), db=Depends(get_db)):
@@ -40,7 +79,8 @@ def download(qr_id: int, fmt: str, request: Request,
 
     if fmt == "svg":
         return Response(svg_bytes(url), media_type="image/svg+xml",
-                        headers={"Content-Disposition": f'attachment; filename="{fname}.svg"'})
+                        headers={"Content-Disposition": f'attachment; filename="{fname}.svg"',
+                                 "Cache-Control": "no-store"})
     if fmt == "png":
         data = png_bytes(url)
     elif fmt == "transparent":
@@ -65,4 +105,5 @@ def download(qr_id: int, fmt: str, request: Request,
     else:
         raise HTTPException(status_code=400, detail="不支持的格式")
     return Response(data, media_type="image/png",
-                    headers={"Content-Disposition": f'attachment; filename="{fname}_{fmt}.png"'})
+                    headers={"Content-Disposition": f'attachment; filename="{fname}_{fmt}.png"',
+                             "Cache-Control": "no-store"})

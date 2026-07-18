@@ -122,7 +122,7 @@ def try_redeem(i):
     s.post(f"{BASE}/api/staff/login", data={"username": "staff", "password": "staff123"})
     # 不同 request_id 模拟两名店员/两次独立提交
     resp = s.post(f"{BASE}/staff/api/redeem",
-                  data={"voucher_id": vid_num, "request_id": f"concurrent-{i}"})
+                  data={"voucher_id": vid_num, "request_id": f"concurrent-{tag}-{i}"})
     return resp.status_code, resp.json()
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:

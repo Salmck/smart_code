@@ -30,9 +30,12 @@
         {{ '更换参考图' if g.campaign.ref_image else '上传参考图' }}
         <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.submit()">
       </label>
+      {% if g.campaign.ref_image %}
+      <a class="k-btn k-btn-sm k-btn-ghost" href="/qr/ref/{{ g.campaign.id }}" style="text-decoration:none">调整替换区域</a>
+      {% endif %}
       <span class="muted">
         {% if g.campaign.ref_image %}
-          {% if g.campaign.ref_qr_box %}✅ 已上传并识别到二维码区域，可下载「海报版」{% else %}⚠️ 已上传但未识别到二维码，请换一张带二维码的图{% endif %}
+          {% if g.campaign.ref_qr_box %}✅ 已识别区域；盖不全可点「调整替换区域」手动框选{% else %}⚠️ 未自动识别到码，点「调整替换区域」手动框选{% endif %}
         {% else %}上传含二维码的海报，系统自动把真码替换进去{% endif %}
       </span>
     </form>

@@ -1,0 +1,106 @@
+{% extends "base_console.html" %}
+{% block title %}校准二维码区域{% endblock %}
+{% block subtitle %}参考图校准{% endblock %}
+{% block content %}
+<h1 class="k-h1">校准二维码替换区域</h1>
+<div class="muted" style="margin-bottom:12px;line-height:1.8">
+  拖动蓝框对准海报里的<b style="color:#cdd5ee">原二维码（连同它的白边一起框进去）</b>，
+  拖右下角手柄调整大小，保存后合成的新码会完整覆盖此区域。</div>
+
+<div class="k-card" style="padding:10px">
+  <div id="stage" style="position:relative;user-select:none;touch-action:none;line-height:0;overflow:hidden;border-radius:8px">
+    <img id="ref-img" src="/uploads/{{ campaign.ref_image }}?t={{ campaign.id }}" style="width:100%;display:block;border-radius:8px" draggable="false">
+    <div id="sel" style="position:absolute;border:2px solid #00D4FF;background:rgba(0,212,255,.14);
+         border-radius:4px;cursor:move;box-shadow:0 0 0 9999px rgba(0,0,0,.35)">
+      <div id="handle" style="position:absolute;right:-13px;bottom:-13px;width:26px;height:26px;
+           background:#00D4FF;border-radius:50%;cursor:nwse-resize;border:3px solid #0B1020"></div>
+    </div>
+  </div>
+</div>
+
+<div class="row" style="gap:10px">
+  <button class="k-btn" id="save">保存区域</button>
+  {% if first_qr_id %}<a class="k-btn k-btn-ghost" id="preview" href="#" style="text-decoration:none">预览合成效果</a>{% endif %}
+  <a class="k-btn k-btn-ghost" href="{{ back }}" style="text-decoration:none">返回</a>
+  <span class="muted" id="msg"></span>
+</div>
+<div class="k-card" id="preview-box" style="display:none;margin-top:12px;padding:10px">
+  <img id="preview-img" style="width:100%;display:block;border-radius:8px">
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const CID = {{ campaign.id }};
+const FIRST_QR = {{ first_qr_id or 'null' }};
+const initBox = {{ box|tojson if box else 'null' }};
+const img = document.getElementById("ref-img");
+const sel = document.getElementById("sel");
+const handle = document.getElementById("handle");
+const stage = document.getElementById("stage");
+let scale = 1;   // 显示像素 / 原图像素
+
+function applyBox(bx) {  // bx 为原图坐标 [x,y,w,h]
+  sel.style.left = (bx[0]*scale) + "px";
+  sel.style.top = (bx[1]*scale) + "px";
+  sel.style.width = (bx[2]*scale) + "px";
+  sel.style.height = (bx[3]*scale) + "px";
+}
+function currentBox() {  // 读回原图坐标
+  return [Math.round(sel.offsetLeft/scale), Math.round(sel.offsetTop/scale),
+          Math.round(sel.offsetWidth/scale), Math.round(sel.offsetHeight/scale)];
+}
+function init() {
+  scale = img.clientWidth / img.naturalWidth;
+  if (initBox) applyBox(initBox);
+  else {  // 未识别到：给一个居中的默认框让用户手动框
+    const s = Math.round(img.naturalWidth * 0.3);
+    applyBox([Math.round((img.naturalWidth-s)/2), Math.round((img.naturalHeight*0.55)), s, s]);
+  }
+}
+if (img.complete) init(); else img.onload = init;
+window.addEventListener("resize", () => { const b = currentBox(); scale = img.clientWidth/img.naturalWidth; applyBox(b); });
+
+// 拖动 / 缩放（Pointer Events，手机触摸可用）
+let mode = null, sx=0, sy=0, ox=0, oy=0, ow=0, oh=0;
+function down(e, m) {
+  mode = m; sx = e.clientX; sy = e.clientY;
+  ox = sel.offsetLeft; oy = sel.offsetTop; ow = sel.offsetWidth; oh = sel.offsetHeight;
+  e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+  e.preventDefault(); e.stopPropagation();
+}
+sel.addEventListener("pointerdown", e => { if (e.target !== handle) down(e, "move"); });
+handle.addEventListener("pointerdown", e => down(e, "resize"));
+window.addEventListener("pointermove", e => {
+  if (!mode) return;
+  const dx = e.clientX - sx, dy = e.clientY - sy;
+  const W = img.clientWidth, H = img.clientHeight;
+  if (mode === "move") {
+    sel.style.left = Math.min(Math.max(ox+dx, 0), W - sel.offsetWidth) + "px";
+    sel.style.top  = Math.min(Math.max(oy+dy, 0), H - sel.offsetHeight) + "px";
+  } else {
+    const nw = Math.min(Math.max(ow+dx, 24), W - sel.offsetLeft);
+    const nh = Math.min(Math.max(oh+dy, 24), H - sel.offsetTop);
+    sel.style.width = nw + "px"; sel.style.height = nh + "px";
+  }
+});
+window.addEventListener("pointerup", () => mode = null);
+
+document.getElementById("save").onclick = async () => {
+  const b = currentBox();
+  const r = await fetch(`/qr/ref/${CID}/box?x=${b[0]}&y=${b[1]}&w=${b[2]}&h=${b[3]}`, {method:"POST"});
+  const m = document.getElementById("msg");
+  if (r.ok) { m.textContent = "✅ 已保存，海报版将按此区域合成"; }
+  else { const d = await r.json(); m.textContent = "保存失败：" + (d.detail||r.status); }
+};
+const pv = document.getElementById("preview");
+if (pv) pv.onclick = async (e) => {
+  e.preventDefault();
+  const b = currentBox();
+  await fetch(`/qr/ref/${CID}/box?x=${b[0]}&y=${b[1]}&w=${b[2]}&h=${b[3]}`, {method:"POST"});
+  document.getElementById("msg").textContent = "✅ 已保存";
+  document.getElementById("preview-box").style.display = "block";
+  document.getElementById("preview-img").src = `/qr/${FIRST_QR}/poster?t=` + Date.now();
+};
+</script>
+{% endblock %}
