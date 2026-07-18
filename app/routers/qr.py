@@ -1,5 +1,5 @@
 """二维码文件下载（PNG / SVG / 透明底 / 带文字版），管理员或本店管理者可用。"""
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 
 import os
@@ -33,11 +33,44 @@ def ref_edit_page(campaign_id: int, request: Request,
     assert_store_access(user, campaign.store_id)
     first_qr = db.query(QRPlacement).filter_by(campaign_id=campaign.id).first()
     back = "/admin/qrs" if user.role == "admin" else "/owner/qrs"
+    # 缓存参数用文件修改时间：换图后（同名覆盖）浏览器才会拉新图
+    ref_path = os.path.join(settings.UPLOAD_DIR, campaign.ref_image)
+    ts = int(os.path.getmtime(ref_path)) if os.path.exists(ref_path) else 0
     return templates.TemplateResponse(
         "console/qr_ref_edit.html",
         {"request": request, "user": user, "campaign": campaign,
-         "box": campaign.ref_qr_box or None,
+         "box": campaign.ref_qr_box or None, "ts": ts,
          "first_qr_id": first_qr.id if first_qr else None, "back": back})
+
+
+@router.post("/ref/{campaign_id}/image")
+async def ref_change_image(campaign_id: int, user: AuthUser = Depends(require_staff),
+                           db=Depends(get_db), image: UploadFile = File(...)):
+    """校准页内直接更换参考图（换图后自动重新识别，回到校准页调整）。"""
+    from fastapi.responses import RedirectResponse
+
+    from ..audit import audit
+    from ..services.catalog_service import set_campaign_reference
+    campaign = db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    assert_store_access(user, campaign.store_id)
+    data = await image.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="图片过大（上限 8MB）")
+    try:
+        result = set_campaign_reference(db, campaign, data, image.filename or "ref.png")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import logging
+        import traceback
+        logging.getLogger("upload").error("参考图处理失败:\n%s", traceback.format_exc())
+        raise HTTPException(status_code=400, detail=f"参考图处理失败：{type(e).__name__}")
+    audit(db, user_id=user.id, role=user.role, store_id=campaign.store_id,
+          action="upload_reference", target=f"campaign:{campaign.id}",
+          after={"detected": result["detected"]})
+    return RedirectResponse(f"/qr/ref/{campaign_id}", status_code=302)
 
 
 @router.post("/ref/{campaign_id}/box")

@@ -12,13 +12,20 @@
   <button class="k-btn k-btn-sm k-btn-ghost" id="z-in">＋ 放大</button>
   <button class="k-btn k-btn-sm k-btn-ghost" id="z-fit">适配</button>
   <span class="muted" id="z-val">100%</span>
+  <span class="spacer" style="flex:1"></span>
+  <form method="post" action="/qr/ref/{{ campaign.id }}/image" enctype="multipart/form-data" style="margin:0">
+    <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
+      🖼 更换参考图
+      <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.submit()">
+    </label>
+  </form>
 </div>
 
 <div class="k-card" style="padding:8px">
   <div id="viewport" style="position:relative;overflow:hidden;border-radius:8px;background:#0a0e1c;
        touch-action:none;user-select:none;-webkit-user-select:none">
     <div id="stage" style="position:absolute;left:0;top:0;transform-origin:0 0;line-height:0">
-      <img id="ref-img" src="/uploads/{{ campaign.ref_image }}?t={{ campaign.id }}" draggable="false" style="display:block">
+      <img id="ref-img" src="/uploads/{{ campaign.ref_image }}?t={{ ts }}" draggable="false" style="display:block">
       <div id="sel" style="position:absolute;border:2px solid #00D4FF;background:rgba(0,212,255,.14);
            border-radius:4px;cursor:move">
         <div id="handle" style="position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;

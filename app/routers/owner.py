@@ -117,7 +117,8 @@ async def create_package(user: AuthUser = Depends(require_owner), db=Depends(get
             data = await image.read()
             if len(data) <= 8 * 1024 * 1024:
                 os.makedirs(_s.UPLOAD_DIR, exist_ok=True)
-                fname = f"pkg_{p.id}{ext}"
+                import time as _t
+                fname = f"pkg_{p.id}_{int(_t.time())}{ext}"
                 with open(os.path.join(_s.UPLOAD_DIR, fname), "wb") as f:
                     f.write(data)
                 p.main_image = f"/uploads/{fname}"
@@ -159,7 +160,8 @@ async def edit_package(package_id: int, user: AuthUser = Depends(require_owner),
             data = await image.read()
             if len(data) <= 8 * 1024 * 1024:
                 os.makedirs(_s.UPLOAD_DIR, exist_ok=True)
-                fname = f"pkg_{p.id}{ext}"
+                import time as _t
+                fname = f"pkg_{p.id}_{int(_t.time())}{ext}"
                 with open(os.path.join(_s.UPLOAD_DIR, fname), "wb") as f:
                     f.write(data)
                 p.main_image = f"/uploads/{fname}"
