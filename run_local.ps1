@@ -6,6 +6,12 @@
 $ErrorActionPreference = "Stop"
 $Port = 8000
 
+# -1) 自动拉取最新代码（拉了代码不重启会出现「页面新、接口旧」的 404/422）
+if (Test-Path .git) {
+    Write-Host "git pull ..." -ForegroundColor Cyan
+    git pull --ff-only
+}
+
 # 0) 清理占用端口的残留进程（旧进程跑旧代码会导致新功能 404/422）
 $stale = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
 if ($stale) {

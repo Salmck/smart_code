@@ -195,6 +195,13 @@ def detect_qr_box(image_bytes: bytes):
         h = int((max(ys) - min(ys)) / scale)
         if w < 10 or h < 10:
             return None
+        # OpenCV 角点常落在模块内侧，框比实际小几个像素——外扩 2.5%（至少 3px）补偿
+        pil_w, pil_h = ow, oh
+        pad = max(int(max(w, h) * 0.025), 3)
+        x = max(x - pad, 0)
+        y = max(y - pad, 0)
+        w = min(w + 2 * pad, pil_w - x)
+        h = min(h + 2 * pad, pil_h - y)
         return (x, y, w, h)
     except Exception:
         return None

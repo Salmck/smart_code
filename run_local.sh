@@ -5,6 +5,9 @@
 set -euo pipefail
 PORT="${PORT:-8000}"
 
+# 自动拉取最新代码（拉了代码不重启会出现「页面新、接口旧」的 404/422）
+[ -d .git ] && { echo "git pull ..."; git pull --ff-only || true; }
+
 # 清理占用端口的残留进程（旧进程跑旧代码会导致新功能 404/422）
 if command -v lsof >/dev/null 2>&1; then
   STALE=$(lsof -ti tcp:"$PORT" 2>/dev/null || true)

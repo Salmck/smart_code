@@ -186,6 +186,10 @@ table.k-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   border-bottom: 1px solid #1a2138; font-size: 12px; flex-wrap: wrap; }
 .qr-row:last-child { border-bottom: none; }
 .qr-row a { text-decoration: none; }
+/* 校准页操作行：等宽按钮、窄屏自动换行 */
+.ref-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.ref-actions .k-btn { text-align: center; padding: 11px 8px; }
+
 /* 增长策略提示面板（套餐编辑辅助）*/
 .strategy-hint { margin-top: 12px; padding: 14px; background: #141a30;
   border: 1px solid #2a3350; border-radius: 10px; }

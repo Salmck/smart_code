@@ -35,9 +35,13 @@ templates.env.filters["dt"] = _dt
 templates.env.filters["pct"] = _pct
 
 # 品牌常量注入所有模板
+import datetime as _dt
+
 templates.env.globals.update(
     BRAND_CN="无界序",
     BRAND_EN="Ordinex",
     PRODUCT_NAME="Ordinex 专属增长码",
     PUBLIC_BASE_URL=settings.PUBLIC_BASE_URL,
+    # 服务进程启动时间：页脚显示，用于识别「代码已更新但进程未重启」
+    BOOT_AT=_dt.datetime.now().strftime("%m-%d %H:%M"),
 )

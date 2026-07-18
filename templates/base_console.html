@@ -17,6 +17,8 @@
   {% block nav %}{% endblock %}
   <div class="k-main">
     {% block content %}{% endblock %}
+    <div class="muted" style="text-align:center;margin-top:26px;font-size:10px;opacity:.6">
+      {{ BRAND_EN }} · 服务启动于 {{ BOOT_AT }}（更新代码后请重启，时间不变说明还是旧进程）</div>
   </div>
   {% block script %}{% endblock %}
   <script>

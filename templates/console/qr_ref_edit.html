@@ -12,13 +12,6 @@
   <button class="k-btn k-btn-sm k-btn-ghost" id="z-in">＋ 放大</button>
   <button class="k-btn k-btn-sm k-btn-ghost" id="z-fit">适配</button>
   <span class="muted" id="z-val">100%</span>
-  <span class="spacer" style="flex:1"></span>
-  <form method="post" action="/qr/ref/{{ campaign.id }}/image" enctype="multipart/form-data" style="margin:0">
-    <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
-      🖼 更换参考图
-      <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.submit()">
-    </label>
-  </form>
 </div>
 
 <div class="k-card" style="padding:8px">
@@ -35,12 +28,18 @@
   </div>
 </div>
 
-<div class="row" style="gap:10px">
+<div class="ref-actions">
   <button class="k-btn" id="save">保存区域</button>
-  {% if first_qr_id %}<a class="k-btn k-btn-ghost" id="preview" href="#" style="text-decoration:none">预览合成效果</a>{% endif %}
+  {% if first_qr_id %}<a class="k-btn k-btn-ghost" id="preview" href="#" style="text-decoration:none">预览合成</a>{% endif %}
+  <form method="post" action="/qr/ref/{{ campaign.id }}/image" enctype="multipart/form-data" style="margin:0;display:inline">
+    <label class="k-btn k-btn-ghost" style="cursor:pointer;display:inline-block">
+      更换参考图
+      <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.submit()">
+    </label>
+  </form>
   <a class="k-btn k-btn-ghost" href="{{ back }}" style="text-decoration:none">返回</a>
-  <span class="muted" id="msg"></span>
 </div>
+<div class="muted" id="msg" style="margin-top:8px;min-height:16px"></div>
 <div class="k-card" id="preview-box" style="display:none;margin-top:12px;padding:10px">
   <img id="preview-img" style="width:100%;display:block;border-radius:8px">
 </div>
@@ -184,10 +183,14 @@ document.getElementById("save").onclick = async () => {
 const pv = document.getElementById("preview");
 if (pv) pv.onclick = async (e) => {
   e.preventDefault();
-  await saveBox();
-  document.getElementById("msg").textContent = "✅ 已保存";
+  const m = document.getElementById("msg");
+  if (!(await saveBox())) { m.textContent = "保存失败，请重试"; return; }
+  m.textContent = "✅ 已保存，正在生成预览 ...";
+  const pimg = document.getElementById("preview-img");
   document.getElementById("preview-box").style.display = "block";
-  document.getElementById("preview-img").src = `/qr/${FIRST_QR}/poster?t=` + Date.now();
+  pimg.onload = () => { m.textContent = "✅ 已保存"; pimg.scrollIntoView({behavior:"smooth", block:"nearest"}); };
+  pimg.onerror = () => { m.textContent = "⚠️ 预览生成失败：请确认服务已重启到最新版本（看页脚启动时间）"; };
+  pimg.src = `/qr/${FIRST_QR}/poster?t=` + Date.now();
 };
 </script>
 {% endblock %}
