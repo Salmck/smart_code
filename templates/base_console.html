@@ -19,5 +19,15 @@
     {% block content %}{% endblock %}
   </div>
   {% block script %}{% endblock %}
+  <script>
+  // 所有宽表格自动包裹滚动容器，保证真机横向可滑、页面不撑破
+  document.querySelectorAll("table.k-table").forEach(function (t) {
+    if (t.parentElement.classList.contains("k-table-wrap")) return;
+    var w = document.createElement("div");
+    w.className = "k-table-wrap";
+    t.parentNode.insertBefore(w, t);
+    w.appendChild(t);
+  });
+  </script>
 </body>
 </html>

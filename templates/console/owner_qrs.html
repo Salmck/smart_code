@@ -18,8 +18,21 @@
 {% for g in groups %}
 <div class="k-card">
   <div style="font-weight:700;font-size:15px">{{ g.campaign.name }} <span class="muted" style="font-weight:400">· {{ g.campaign.package_title }}</span></div>
-  <div class="muted">已生成 {{ g.qrs|length }} 个平台码
-    {% if g.campaign.ref_qr_box %}· 参考图已识别，可下海报版{% endif %}</div>
+  <div class="muted">已生成 {{ g.qrs|length }} 个平台码</div>
+  <div class="ref-box">
+    <form method="post" action="/owner/qrs/reference" enctype="multipart/form-data" class="ref-form">
+      <input type="hidden" name="campaign_id" value="{{ g.campaign.id }}">
+      <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
+        {{ '更换参考图' if g.campaign.ref_image else '上传参考图' }}
+        <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.submit()">
+      </label>
+      <span class="muted">
+        {% if g.campaign.ref_image %}
+          {% if g.campaign.ref_qr_box %}✅ 已识别二维码区域，可下载「海报版」{% else %}⚠️ 未识别到二维码，请换一张带二维码的图{% endif %}
+        {% else %}上传含二维码的海报，系统把真码替换进去{% endif %}
+      </span>
+    </form>
+  </div>
   {% if g.qrs %}
   <details class="qr-fold">
     <summary>展开 {{ g.qrs|length }} 个平台的二维码下载</summary>

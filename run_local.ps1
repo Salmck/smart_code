@@ -43,7 +43,7 @@ Write-Host "==============================================" -ForegroundColor Cya
 Write-Host ""
 
 try {
-    uvicorn app.main:app --host 0.0.0.0 --port $Port
+    uvicorn app.main:app --host 0.0.0.0 --port $Port --proxy-headers
 }
 finally {
     Stop-Process -Id $cf.Id -ErrorAction SilentlyContinue

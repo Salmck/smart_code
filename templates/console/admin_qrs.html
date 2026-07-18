@@ -27,7 +27,8 @@
     <form method="post" action="/admin/qrs/reference" enctype="multipart/form-data" class="ref-form">
       <input type="hidden" name="campaign_id" value="{{ g.campaign.id }}">
       <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
-        选择参考图 <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.submit()">
+        {{ '更换参考图' if g.campaign.ref_image else '上传参考图' }}
+        <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.submit()">
       </label>
       <span class="muted">
         {% if g.campaign.ref_image %}

@@ -29,8 +29,11 @@ def download(qr_id: int, fmt: str, request: Request,
         raise HTTPException(status_code=404, detail="二维码不存在")
     assert_store_access(user, qr.store_id)
 
-    # 优先用配置的公网地址（隧道/域名），否则回退到请求 Host
+    # 优先用配置的公网地址（隧道/域名），否则回退到请求 Host；
+    # 非本机访问一律升级为 https（微信/摄像头扫码均要求 https）
     base = settings.PUBLIC_BASE_URL or str(request.base_url)
+    if base.startswith("http://") and "localhost" not in base and "127.0.0.1" not in base:
+        base = "https://" + base[len("http://"):]
     url = qr_url(base, qr.short_code)
     # 文件名只用 ASCII 短码（HTTP 头是 latin-1，中文渠道名会报错）
     fname = f"ordinex_{qr.short_code}"

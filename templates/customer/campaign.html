@@ -72,7 +72,6 @@
 {% endif %}
 
 <div class="cta-bar">
-  {% if store.phone %}<a class="btn btn-ghost" href="tel:{{ store.phone }}">电话</a>{% endif %}
   {% if my_voucher %}
     <a class="btn btn-primary" href="/v/{{ my_voucher.code }}">查看我的凭证</a>
   {% elif open_ok %}

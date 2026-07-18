@@ -205,6 +205,27 @@ def qrs(request: Request, user: AuthUser = Depends(require_owner), db=Depends(ge
         "console/owner_qrs.html", {"request": request, "user": user, "groups": groups})
 
 
+@router.post("/qrs/reference")
+async def upload_reference(user: AuthUser = Depends(require_owner), db=Depends(get_db),
+                           campaign_id: int = Form(...), image: UploadFile = File(...)):
+    """老板端上传/更换活动参考图（海报），识别二维码区域后两端均可下载海报版。"""
+    sid = _sid(user)
+    campaign = db.get(Campaign, int(campaign_id))
+    if not campaign or campaign.store_id != sid:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    data = await image.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="图片过大（上限 8MB）")
+    from ..services.catalog_service import set_campaign_reference
+    try:
+        result = set_campaign_reference(db, campaign, data, image.filename or "ref.png")
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    audit(db, user_id=user.id, role=user.role, store_id=sid, action="upload_reference",
+          target=f"campaign:{campaign.id}", after={"detected": result["detected"]})
+    return RedirectResponse("/owner/qrs", status_code=302)
+
+
 @router.get("/reservations")
 def reservations(request: Request, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
     sid = _sid(user)
@@ -336,10 +357,11 @@ def export(kind: str, user: AuthUser = Depends(require_owner), db=Depends(get_db
             w.writerow([r.id, r.voucher_id, r.staff_id, r.amount,
                         r.created_at.strftime("%Y-%m-%d %H:%M")])
     elif kind == "reservations":
-        w.writerow(["预约ID", "姓名", "手机(脱敏)", "日期", "时间", "人数", "状态"])
+        # 导出数据不脱敏（用户要求），页面展示仍脱敏
+        w.writerow(["预约ID", "姓名", "手机号", "日期", "时间", "人数", "状态"])
         for r in db.query(Reservation).filter_by(store_id=sid):
             c = db.get(Customer, r.customer_id)
-            w.writerow([r.id, r.name, mask_phone(c.phone) if c else "", r.date, r.time,
+            w.writerow([r.id, r.name, c.phone if c else "", r.date, r.time,
                         r.people, r.status])
     else:
         raise HTTPException(status_code=400, detail="不支持的导出类型")

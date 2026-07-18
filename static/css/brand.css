@@ -25,7 +25,10 @@ button { font-family: inherit; cursor: pointer; }
   min-height: 100vh;
 }
 .c-wrap { max-width: 480px; margin: 0 auto; padding-bottom: 90px; }
-.c-hero { width: 100%; aspect-ratio: 16/10; object-fit: cover; display: block; background: #e5e7eb; }
+/* 套餐主图：真实图片按原比例完整显示（自适应高度不裁切）；占位块保持固定比例 */
+.c-hero { width: 100%; display: block; background: #e5e7eb; }
+img.c-hero { height: auto; }
+div.c-hero { aspect-ratio: 16/10; }
 .c-card { background: #fff; border-radius: var(--radius); margin: 12px; padding: 18px; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
 .c-title { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
 .c-store { font-size: 13px; color: #6b7280; }
@@ -43,7 +46,8 @@ button { font-family: inherit; cursor: pointer; }
 
 .cta-bar { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto;
   background: #fff; border-top: 1px solid #eee; padding: 10px 12px; display: flex; gap: 10px; }
-.btn { border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 600; flex: 1; }
+.btn { border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 600; flex: 1;
+  text-decoration: none; text-align: center; display: inline-block; }
 .btn-primary { background: var(--brand-grad); color: #fff; }
 .btn-ghost { background: #eef2ff; color: var(--brand-1); flex: 0 0 auto; padding: 13px 16px; }
 .btn:disabled { opacity: .5; }
@@ -182,8 +186,13 @@ table.k-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 html, body { max-width: 100%; overflow-x: clip; }
 .k-nav { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; -webkit-overflow-scrolling: touch; }
 .k-nav::-webkit-scrollbar { height: 0; }
-/* 宽表格在自身容器内横向滚动，不撑破页面 */
-.k-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* 宽表格在自身容器内横向滚动，不撑破页面（base_console 的脚本自动包裹） */
+.k-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+.k-table-wrap::-webkit-scrollbar { height: 3px; }
+/* 预约卡片 */
+.res-meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #cdd5ee; margin-top: 10px; }
+.res-ops { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.res-ops form { margin: 0; }
 
 /* ================= 手机适配 ================= */
 @media (max-width: 640px) {
@@ -196,9 +205,8 @@ html, body { max-width: 100%; overflow-x: clip; }
   /* 表单单列铺满，输入框 16px 防 iOS 聚焦缩放 */
   .form-row { grid-template-columns: 1fr; gap: 10px; }
   .k-input, .k-select { font-size: 16px; padding: 11px 12px; }
-  /* 宽表格横向滚动：整表变可滚块，单元格不换行 */
-  table.k-table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-  table.k-table::-webkit-scrollbar { height: 3px; }
+  /* 宽表格：由 JS 包裹 .k-table-wrap 提供真机可靠的横向触摸滚动 */
+  table.k-table { white-space: nowrap; }
   .k-table th, .k-table td { padding: 9px 10px; }
   /* 统计卡两列，指标数字略小 */
   .k-grid { grid-template-columns: 1fr 1fr; gap: 10px; }

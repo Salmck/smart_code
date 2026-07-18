@@ -243,7 +243,6 @@ def export(kind: str, user: AuthUser = Depends(require_admin), db=Depends(get_db
     from fastapi.responses import StreamingResponse
 
     from ..models import Customer, Event, Redemption, Reservation
-    from ..utils import mask_phone
 
     buf = io.StringIO()
     w = csv.writer(buf)
@@ -254,10 +253,11 @@ def export(kind: str, user: AuthUser = Depends(require_admin), db=Depends(get_db
                         "是" if r.is_reversal else "否",
                         r.created_at.strftime("%Y-%m-%d %H:%M")])
     elif kind == "reservations":
-        w.writerow(["预约ID", "门店ID", "姓名", "手机(脱敏)", "日期", "时间", "人数", "包间", "状态"])
+        # 导出数据不脱敏（用户要求），页面展示仍脱敏
+        w.writerow(["预约ID", "门店ID", "姓名", "手机号", "日期", "时间", "人数", "包间", "状态"])
         for r in db.query(Reservation).order_by(Reservation.created_at.desc()):
             c = db.get(Customer, r.customer_id)
-            w.writerow([r.id, r.store_id, r.name, mask_phone(c.phone) if c else "",
+            w.writerow([r.id, r.store_id, r.name, c.phone if c else "",
                         r.date, r.time, r.people, "是" if r.need_room else "否", r.status])
     elif kind == "events":
         w.writerow(["事件ID", "类型", "门店ID", "增长动作ID", "活动ID", "二维码ID",
@@ -267,9 +267,9 @@ def export(kind: str, user: AuthUser = Depends(require_admin), db=Depends(get_db
                         e.qr_id, e.channel, e.visitor_id or "", e.customer_id or "",
                         e.created_at.strftime("%Y-%m-%d %H:%M:%S")])
     elif kind == "customers":
-        w.writerow(["顾客ID", "姓名", "手机(脱敏)", "首次访问", "最近访问"])
+        w.writerow(["顾客ID", "姓名", "手机号", "首次访问", "最近访问"])
         for c in db.query(Customer).order_by(Customer.created_at.desc()):
-            w.writerow([c.id, c.name, mask_phone(c.phone),
+            w.writerow([c.id, c.name, c.phone,
                         c.first_seen.strftime("%Y-%m-%d %H:%M"),
                         c.last_seen.strftime("%Y-%m-%d %H:%M")])
     else:
