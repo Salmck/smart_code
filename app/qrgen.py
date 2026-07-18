@@ -41,9 +41,10 @@ def qr_url(base_url: str, short_code: str) -> str:
     return f"{base_url.rstrip('/')}/q/{short_code}"
 
 
-def png_bytes(url: str, box_size: int = 10, transparent: bool = False) -> bytes:
-    qr = qrcode.QRCode(box_size=box_size, border=2,
-                       error_correction=qrcode.constants.ERROR_CORRECT_M)
+def png_bytes(url: str, box_size: int = 10, transparent: bool = False,
+              border: int = 2, ec=None) -> bytes:
+    qr = qrcode.QRCode(box_size=box_size, border=border,
+                       error_correction=ec or qrcode.constants.ERROR_CORRECT_M)
     qr.add_data(url)
     qr.make(fit=True)
     if transparent:
@@ -82,7 +83,7 @@ def _find_brand_icon(platform: str):
     return None
 
 
-def png_with_platform(url: str, platform: str, color: str) -> bytes:
+def png_with_platform(url: str, platform: str, color: str, border: int = 2) -> bytes:
     """中间签 logo 式平台码。
 
     中心优先使用 static/brand_icons/{平台名}.png 的官方图标（用户自备），
@@ -91,7 +92,7 @@ def png_with_platform(url: str, platform: str, color: str) -> bytes:
     实测的稳定参数；box_size 16 保证输出 ~600px（低分辨率显著降低
     中心带标码的解码率）。
     """
-    qr = qrcode.QRCode(box_size=16, border=2,
+    qr = qrcode.QRCode(box_size=16, border=border,
                        error_correction=qrcode.constants.ERROR_CORRECT_H)
     qr.add_data(url)
     qr.make(fit=True)
@@ -212,28 +213,31 @@ def composite_into_reference(ref_bytes: bytes, box, code_url: str,
     rw, rh = ref.size
     x, y, w, h = box[0], box[1], box[2], box[3]
     manual = len(box) > 4 and box[4] == "manual"
-    # 以检测框中心为基准的外扩正方形（二维码本为正方形）。
-    # 自动检测框只含模块区 → 外扩 14% 盖静区；手动框已含白边 → 仅 3% 保险。
     side = max(w, h)
+    cx, cy = x + w // 2, y + h // 2
+
+    # 白色垫层（盖住原码及其静区）：自动检测框只含模块区 → 外扩 14%；
+    # 手动框已含白边 → 仅 3% 保险
     margin = max(int(side * (0.03 if manual else 0.14)), 6)
     out = side + 2 * margin
-    cx, cy = x + w // 2, y + h // 2
     x0 = max(cx - out // 2, 0)
     y0 = max(cy - out // 2, 0)
     x1 = min(x0 + out, rw)
     y1 = min(y0 + out, rh)
-    out_w, out_h = x1 - x0, y1 - y0
-
-    # 白底垫层：完整盖住原码与其静区
     draw = ImageDraw.Draw(ref)
     draw.rounded_rectangle([x0, y0, x1, y1], radius=max(int(out * 0.03), 4), fill="white")
 
-    if platform and min(out_w, out_h) >= 180:
-        code_png = png_with_platform(code_url, platform, color)
+    # 码点本体：生成「无内边距」的码（垫层已充当静区），尺寸精确贴合——
+    # 自动框 = 原码模块区，码点与原码同大；手动框含白边，码点取 92% 视觉相当
+    code_side = side if not manual else max(int(side * 0.92), 24)
+    code_side = min(code_side, x1 - x0, y1 - y0)
+    if platform and code_side >= 180:
+        code_png = png_with_platform(code_url, platform, color, border=0)
     else:
-        code_png = png_bytes(code_url)
-    code_img = Image.open(io.BytesIO(code_png)).convert("RGB").resize((out_w, out_h))
-    ref.paste(code_img, (x0, y0))
+        code_png = png_bytes(code_url, border=0,
+                             ec=qrcode.constants.ERROR_CORRECT_M)
+    code_img = Image.open(io.BytesIO(code_png)).convert("RGB").resize((code_side, code_side))
+    ref.paste(code_img, (max(cx - code_side // 2, x0), max(cy - code_side // 2, y0)))
     buf = io.BytesIO()
     ref.save(buf, format="PNG")
     return buf.getvalue()
