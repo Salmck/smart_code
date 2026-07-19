@@ -35,6 +35,13 @@
         {% else %}上传含二维码的海报，系统把真码替换进去{% endif %}
       </span>
     </form>
+      {% if g.campaign.ref_qr_box and g.qrs %}
+      <a href="/qr/ref/{{ g.campaign.id }}" title="点击调整替换区域">
+        <img src="/qr/{{ g.qrs[0].id }}/poster?preview=1&t={{ g.campaign.ref_qr_box|join('-') }}"
+             style="height:130px;border-radius:8px;margin-top:10px;display:block;border:1px solid #1f2740">
+      </a>
+      <div class="muted" style="margin-top:4px">当前合成效果（点击图片可调整区域）</div>
+      {% endif %}
   </div>
   {% if g.qrs %}
   <details class="qr-fold">

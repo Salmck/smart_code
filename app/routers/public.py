@@ -117,14 +117,14 @@ def action_page(short_code: str, request: Request, db=Depends(get_db),
             {"request": request, "title": "无法参与", "message": reason},
         )
 
-    ev_type = EventType.CLICK_RESERVE if campaign.need_reservation else EventType.CLICK_CLAIM
-    log_from_ctx(db, ev_type, ctx, visitor_id=vid, customer_id=customer_id)
-
-    # 已有凭证的回头客：直接带去凭证页，避免重复领取/预约
+    # 已有凭证的回头客：直接带去凭证页（不计入「点击参与」，避免虚高）
     if customer_id:
         existing = claim_service.latest_active_voucher(db, campaign.id, customer_id)
         if existing:
             return RedirectResponse(f"/v/{existing.code}", status_code=302)
+
+    ev_type = EventType.CLICK_RESERVE if campaign.need_reservation else EventType.CLICK_CLAIM
+    log_from_ctx(db, ev_type, ctx, visitor_id=vid, customer_id=customer_id)
 
     return templates.TemplateResponse(
         "customer/action.html",

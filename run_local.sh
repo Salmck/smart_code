@@ -24,7 +24,7 @@ if ! command -v cloudflared >/dev/null 2>&1; then
 fi
 
 rm -f cf.log
-cloudflared tunnel --url "http://localhost:${PORT}" > cf.log 2>&1 &
+cloudflared tunnel --protocol http2 --url "http://localhost:${PORT}" > cf.log 2>&1 &
 CF_PID=$!
 trap 'kill $CF_PID 2>/dev/null || true' EXIT
 echo "cloudflared 已启动 (PID $CF_PID)，等待分配公网地址 ..."

@@ -94,7 +94,7 @@ def ref_save_box(campaign_id: int, user: AuthUser = Depends(require_staff),
 
 
 @router.get("/{qr_id}/{fmt}")
-def download(qr_id: int, fmt: str, request: Request,
+def download(qr_id: int, fmt: str, request: Request, preview: int = 0,
              user: AuthUser = Depends(require_staff), db=Depends(get_db)):
     qr = db.get(QRPlacement, qr_id)
     if not qr:
@@ -135,6 +135,19 @@ def download(qr_id: int, fmt: str, request: Request,
             ref_bytes = f.read()
         data = composite_into_reference(ref_bytes, campaign.ref_qr_box, url,
                                         qr.channel, color_of(qr.channel))
+        if preview:
+            # 预览用压缩小图（隧道网络下大 PNG 常加载失败），内联显示不下载
+            import io as _io
+
+            from PIL import Image as _Img
+            im = _Img.open(_io.BytesIO(data)).convert("RGB")
+            if max(im.size) > 1000:
+                r = 1000 / max(im.size)
+                im = im.resize((max(int(im.size[0] * r), 1), max(int(im.size[1] * r), 1)))
+            b = _io.BytesIO()
+            im.save(b, format="JPEG", quality=82)
+            return Response(b.getvalue(), media_type="image/jpeg",
+                            headers={"Cache-Control": "no-store"})
     else:
         raise HTTPException(status_code=400, detail="不支持的格式")
     return Response(data, media_type="image/png",

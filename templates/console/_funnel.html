@@ -30,12 +30,10 @@
   <div class="card-h">顾客转化漏斗</div>
   {% set steps = [
     ('扫码（独立）', f.unique_scan),
-    ('浏览套餐', f.view),
-    ('点击领取/预约', f.click),
+    ('点击参与', f.click),
     ('验证手机号', f.verify),
-    ('领取', f.claim),
-    ('预约', f.reserve),
-    ('确认预约', f.confirm),
+    ('提交领取/预约', f.submit),
+    ('凭证生效', f.effective),
     ('实际核销', f.redeem),
   ] %}
   {% set maxv = f.unique_scan if f.unique_scan > 0 else 1 %}
@@ -47,10 +45,10 @@
   </div>
   {% endfor %}
   <div class="conv-row">
-    <div class="conv"><span>扫码→预约</span><b>{{ f.rate_scan_to_reserve|pct }}</b></div>
-    <div class="conv"><span>预约→核销</span><b>{{ f.rate_reserve_to_redeem|pct }}</b></div>
+    <div class="conv"><span>扫码→提交</span><b>{{ f.rate_scan_to_submit|pct }}</b></div>
+    <div class="conv"><span>提交→核销</span><b>{{ f.rate_submit_to_redeem|pct }}</b></div>
     <div class="conv"><span>扫码→核销</span><b>{{ f.rate_scan_to_redeem|pct }}</b></div>
     <div class="conv"><span>重复扫码</span><b>{{ f.repeat_scan }}</b></div>
   </div>
-  <div class="muted" style="margin-top:10px">口径：独立扫码按匿名访客近似（换设备/清缓存会重复计数）；领取/预约/核销人数按顾客手机号去重；分母为 0 显示「暂无数据」。</div>
+  <div class="muted" style="margin-top:10px">口径：独立扫码按匿名访客近似（换设备/清缓存会重复计数）；验证之后各步按顾客手机号去重；「提交」=领取或预约（并集）、「凭证生效」=领取+已确认预约；分母为 0 显示「暂无数据」。</div>
 </div>

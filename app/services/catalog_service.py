@@ -152,18 +152,23 @@ def set_campaign_reference(db, campaign, image_bytes: bytes, filename: str) -> d
     if ext not in (".png", ".jpg", ".jpeg", ".webp"):
         raise ValueError("仅支持 PNG/JPG/WEBP 图片")
 
-    # 统一按 EXIF 矫正方向并转 RGB 后保存为 PNG，保证检测框坐标与保存文件一致
+    # 统一按 EXIF 矫正方向、转 RGB、长边压到 2000px、存 JPEG——
+    # 手机原图转 PNG 动辄十几 MB，隧道加载易超时（表现为预览/图片加载失败）
     import io as _io
     from PIL import Image, ImageOps
     try:
         pil = ImageOps.exif_transpose(Image.open(_io.BytesIO(image_bytes))).convert("RGB")
     except Exception:
         raise ValueError("图片无法解析，请换一张")
+    MAX_SIDE = 2000
+    if max(pil.size) > MAX_SIDE:
+        r = MAX_SIDE / max(pil.size)
+        pil = pil.resize((max(int(pil.size[0] * r), 1), max(int(pil.size[1] * r), 1)))
     buf = _io.BytesIO()
-    pil.save(buf, format="PNG")
+    pil.save(buf, format="JPEG", quality=88)
     image_bytes = buf.getvalue()
 
-    safe_name = f"ref_c{campaign.id}.png"
+    safe_name = f"ref_c{campaign.id}.jpg"
     path = os.path.join(settings.UPLOAD_DIR, safe_name)
     with open(path, "wb") as f:
         f.write(image_bytes)

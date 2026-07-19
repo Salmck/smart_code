@@ -41,6 +41,14 @@ def _count(db, filters, event_type, distinct_col=None):
     return q.scalar() or 0
 
 
+def _count_in(db, filters, event_types, distinct_col):
+    """多事件类型取并集去重（如「领取或预约」按顾客去重只算一次）。"""
+    q = db.query(func.count(distinct(distinct_col)))
+    q = q.filter(Event.event_type.in_(event_types))
+    q = _apply_filters(q, filters)
+    return q.scalar() or 0
+
+
 def _rate(numerator, denominator):
     """分母为 0 返回 None（前端显示「暂无数据」），否则返回百分比浮点。"""
     if not denominator:
@@ -49,15 +57,23 @@ def _rate(numerator, denominator):
 
 
 def funnel(db, filters: dict) -> dict:
+    """漏斗口径（避免「领取0夹在中间」「浏览=扫码」这类看着不对的展示）：
+    扫码(独立访客) → 点击参与(领取/预约按钮，访客并集去重) → 验证手机号(顾客)
+    → 提交(领取∪预约，顾客并集) → 凭证生效(领取∪确认预约) → 实际核销
+    """
     total_scan = _count(db, filters, EventType.SCAN)
     unique_scan = _count(db, filters, EventType.SCAN, Event.visitor_id)
     view = _count(db, filters, EventType.VIEW_CAMPAIGN, Event.visitor_id)
-    click = (_count(db, filters, EventType.CLICK_CLAIM, Event.visitor_id)
-             + _count(db, filters, EventType.CLICK_RESERVE, Event.visitor_id))
+    click = _count_in(db, filters, [EventType.CLICK_CLAIM, EventType.CLICK_RESERVE],
+                      Event.visitor_id)
     verify = _count(db, filters, EventType.VERIFY_PHONE, Event.customer_id)
     claim = _count(db, filters, EventType.CLAIM, Event.customer_id)
     reserve = _count(db, filters, EventType.CREATE_RESERVATION, Event.customer_id)
     confirm = _count(db, filters, EventType.CONFIRM_RESERVATION, Event.customer_id)
+    submit = _count_in(db, filters, [EventType.CLAIM, EventType.CREATE_RESERVATION],
+                       Event.customer_id)
+    effective = _count_in(db, filters, [EventType.CLAIM, EventType.CONFIRM_RESERVATION],
+                          Event.customer_id)
     redeem = _count(db, filters, EventType.REDEEM, Event.customer_id)
 
     # 核销金额：Redemption 联 Voucher 取归因字段，与其余指标同口径过滤
@@ -86,9 +102,13 @@ def funnel(db, filters: dict) -> dict:
         "claim": claim,
         "reserve": reserve,
         "confirm": confirm,
+        "submit": submit,          # 提交领取/预约（并集去重）
+        "effective": effective,    # 凭证生效（领取 + 已确认预约）
         "redeem": redeem,
         "redeem_amount": redeem_amount,
         # 转化率（分母 0 → None）
+        "rate_scan_to_submit": _rate(submit, unique_scan),
+        "rate_submit_to_redeem": _rate(redeem, submit),
         "rate_scan_to_reserve": _rate(reserve, unique_scan),
         "rate_reserve_to_redeem": _rate(redeem, reserve),
         "rate_scan_to_redeem": _rate(redeem, unique_scan),

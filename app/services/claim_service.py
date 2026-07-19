@@ -165,7 +165,7 @@ def create_reservation(db, *, campaign: Campaign, customer_id: int, ctx,
 
 
 def confirm_reservation(db, reservation: Reservation, confirmed_by: int) -> Voucher | None:
-    """门店确认预约（人工确认场景）：扣库存 + 凭证转 usable。"""
+    """门店确认预约（人工确认场景）：扣库存 + 凭证转 usable + 写确认事件。"""
     if reservation.status != ReservationStatus.PENDING:
         raise ClaimError("该预约无需确认或状态不允许")
     if not _decrement_stock(db, reservation.campaign_id):
@@ -175,6 +175,15 @@ def confirm_reservation(db, reservation: Reservation, confirmed_by: int) -> Vouc
     voucher = db.query(Voucher).filter_by(reservation_id=reservation.id).first()
     if voucher and voucher.status == VoucherStatus.PENDING:
         transition(voucher, VoucherStatus.USABLE, VOUCHER_TRANSITIONS)
+    # 此前人工确认漏写事件 → 漏斗「确认/凭证生效」偏少（自动确认路径有写）
+    from ..events import log_event
+    log_event(db, event_type=EventType.CONFIRM_RESERVATION,
+              store_id=reservation.store_id,
+              growth_action_id=reservation.growth_action_id,
+              campaign_id=reservation.campaign_id, qr_id=reservation.qr_id,
+              customer_id=reservation.customer_id, channel=reservation.channel,
+              content_no=reservation.content_no, material_no=reservation.material_no,
+              commit=False)
     db.commit()
     return voucher
 

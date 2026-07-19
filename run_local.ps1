@@ -30,7 +30,7 @@ if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) {
 
 # 2) 后台启动隧道，日志写入 cf.log（cloudflared 的地址打印在 stderr）
 Remove-Item cf.log -ErrorAction SilentlyContinue
-$cf = Start-Process cloudflared -ArgumentList "tunnel","--url","http://localhost:$Port" -RedirectStandardError "cf.log" -PassThru -WindowStyle Hidden
+$cf = Start-Process cloudflared -ArgumentList "tunnel","--protocol","http2","--url","http://localhost:$Port" -RedirectStandardError "cf.log" -PassThru -WindowStyle Hidden
 Write-Host "cloudflared 已启动 (PID $($cf.Id))，等待分配公网地址 ..."
 
 # 3) 轮询日志抓取 trycloudflare 地址（最多等 30 秒）

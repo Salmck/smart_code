@@ -190,7 +190,7 @@ if (pv) pv.onclick = async (e) => {
   document.getElementById("preview-box").style.display = "block";
   pimg.onload = () => { m.textContent = "✅ 已保存"; pimg.scrollIntoView({behavior:"smooth", block:"nearest"}); };
   pimg.onerror = () => { m.textContent = "⚠️ 预览生成失败：请确认服务已重启到最新版本（看页脚启动时间）"; };
-  pimg.src = `/qr/${FIRST_QR}/poster?t=` + Date.now();
+  pimg.src = `/qr/${FIRST_QR}/poster?preview=1&t=` + Date.now();
 };
 </script>
 {% endblock %}

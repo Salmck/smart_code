@@ -46,12 +46,14 @@
     </div>
     <div style="margin-top:10px">
       <label class="muted">套餐图片（选填，显示在顾客扫码后的套餐页）</label>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-        <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
-          选择图片 <input type="file" name="image" accept="image/*" style="display:none"
-                        onchange="document.getElementById('img-name').textContent=this.files[0]?this.files[0].name:''">
-        </label>
-        <span class="muted" id="img-name">未选择（可稍后补传）</span>
+      <div class="row" style="margin-top:6px;align-items:flex-start">
+        <img class="img-preview" style="height:84px;border-radius:8px;border:1px solid #1f2740;display:none">
+        <div>
+          <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
+            选择图片 <input type="file" name="image" accept="image/*" style="display:none" onchange="localPreview(this)">
+          </label>
+          <div class="muted img-tip" style="margin-top:4px">未选择（可稍后补传）</div>
+        </div>
       </div>
     </div>
     <div style="margin-top:10px"><label class="muted">套餐介绍</label><input class="k-input" name="package_desc" style="margin-top:4px"></div>
@@ -89,13 +91,21 @@
       </div>
       <div><label class="muted">套餐介绍</label><input class="k-input" name="package_desc" value="{{ row.p.package_desc }}" style="margin-top:4px"></div>
       <div style="margin-top:8px"><label class="muted">使用规则</label><input class="k-input" name="usage_rules" value="{{ row.p.usage_rules }}" style="margin-top:4px"></div>
-      <div class="row" style="margin-top:10px">
-        <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
-          {{ '更换套餐图' if row.p.main_image else '上传套餐图' }}
-          <input type="file" name="image" accept="image/*" style="display:none"
-                 onchange="this.closest('form').querySelector('.img-tip').textContent=this.files[0]?this.files[0].name:''">
-        </label>
-        <span class="muted img-tip"></span>
+      <div style="margin-top:10px">
+        <label class="muted">套餐图（显示在顾客扫码套餐页顶部）</label>
+        <div class="row" style="margin-top:6px;align-items:flex-start">
+          <img class="img-preview" src="{{ row.p.main_image or '' }}"
+               style="height:84px;border-radius:8px;border:1px solid #1f2740;{{ '' if row.p.main_image else 'display:none' }}">
+          <div>
+            <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
+              {{ '更换套餐图' if row.p.main_image else '上传套餐图' }}
+              <input type="file" name="image" accept="image/*" style="display:none" onchange="localPreview(this)">
+            </label>
+            <div class="muted img-tip" style="margin-top:4px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
         <span class="spacer" style="flex:1"></span>
         <button class="k-btn k-btn-sm">保存修改</button>
       </div>
@@ -106,6 +116,16 @@
 </div>
 
 <script>
+// 选图后立即在本地预览（不等上传）
+function localPreview(input) {
+  const scope = input.closest("form") || document;
+  const img = scope.querySelector(".img-preview");
+  const tip = scope.querySelector(".img-tip");
+  if (input.files && input.files[0]) {
+    if (img) { img.src = URL.createObjectURL(input.files[0]); img.style.display = "block"; }
+    if (tip) tip.textContent = input.files[0].name + "（保存后生效）";
+  }
+}
 async function loadStrategy() {
   const id = document.getElementById('strategy-select').value;
   const hint = document.getElementById('strategy-hint');
