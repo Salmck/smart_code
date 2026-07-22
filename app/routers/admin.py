@@ -71,6 +71,63 @@ def create_store(user: AuthUser = Depends(require_admin), db=Depends(get_db),
     return RedirectResponse("/admin/stores", status_code=302)
 
 
+@router.get("/stores/{store_id}")
+def store_detail(store_id: int, request: Request,
+                 user: AuthUser = Depends(require_admin), db=Depends(get_db)):
+    """门店详情：资料 + 数据概况 + 成员，可编辑资料、暂停/恢复。"""
+    from ..models import Package, QRPlacement, StoreMember, User
+    store = db.get(Store, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="门店不存在")
+    f = funnel(db, {"store_id": store_id})
+    counts = {
+        "actions": db.query(GrowthAction).filter_by(store_id=store_id).count(),
+        "packages": db.query(Package).filter_by(store_id=store_id).count(),
+        "campaigns": db.query(Campaign).filter_by(store_id=store_id).count(),
+        "qrs": db.query(QRPlacement).filter_by(store_id=store_id).count(),
+    }
+    members = db.query(StoreMember).filter_by(store_id=store_id).all()
+    member_rows = [{"m": m, "user": db.get(User, m.user_id)} for m in members]
+    return templates.TemplateResponse(
+        "console/admin_store_detail.html",
+        {"request": request, "user": user, "store": store, "f": f,
+         "counts": counts, "members": member_rows})
+
+
+@router.post("/stores/{store_id}/edit")
+def edit_store(store_id: int, user: AuthUser = Depends(require_admin), db=Depends(get_db),
+               name: str = Form(...), industry: str = Form("餐饮"),
+               address: str = Form(""), phone: str = Form(""),
+               auto_confirm: str = Form("")):
+    store = db.get(Store, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="门店不存在")
+    before = {"name": store.name, "phone": store.phone, "auto_confirm": store.auto_confirm}
+    store.name = sanitize_text(name, 128)
+    store.industry = industry
+    store.address = sanitize_text(address, 256)
+    store.phone = sanitize_text(phone, 32)
+    store.auto_confirm = bool(auto_confirm)
+    db.commit()
+    audit(db, user_id=user.id, role=user.role, store_id=store.id, action="edit_store",
+          target=f"store:{store.id}", before=before,
+          after={"name": store.name, "phone": store.phone, "auto_confirm": store.auto_confirm})
+    return RedirectResponse(f"/admin/stores/{store_id}", status_code=302)
+
+
+@router.post("/stores/{store_id}/status")
+def toggle_store(store_id: int, user: AuthUser = Depends(require_admin), db=Depends(get_db)):
+    store = db.get(Store, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="门店不存在")
+    before = store.status
+    store.status = "suspended" if store.status == "active" else "active"
+    db.commit()
+    audit(db, user_id=user.id, role=user.role, store_id=store.id, action="toggle_store",
+          target=f"store:{store.id}", before={"status": before}, after={"status": store.status})
+    return RedirectResponse(f"/admin/stores/{store_id}", status_code=302)
+
+
 # ---------- 增长动作 ----------
 @router.get("/actions")
 def actions_page(request: Request, user: AuthUser = Depends(require_admin), db=Depends(get_db)):

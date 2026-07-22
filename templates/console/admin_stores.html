@@ -23,13 +23,14 @@
 </div>
 <div class="k-card">
   <table class="k-table">
-    <tr><th>ID</th><th>门店</th><th>行业</th><th>地址</th><th>确认方式</th><th>状态</th></tr>
+    <tr><th>ID</th><th>门店</th><th>行业</th><th>地址</th><th>确认方式</th><th>状态</th><th></th></tr>
     {% for s in stores %}
     <tr>
       <td>{{ s.id }}</td><td>{{ s.name }}</td><td>{{ s.industry }}</td>
       <td class="muted">{{ s.address }}</td>
       <td>{{ '自动' if s.auto_confirm else '人工' }}</td>
-      <td><span class="k-tag {{ 'on' if s.status=='active' else 'off' }}">{{ s.status }}</span></td>
+      <td><span class="k-tag {{ 'on' if s.status=='active' else 'off' }}">{{ '正常' if s.status=='active' else '已暂停' }}</span></td>
+      <td><a class="k-tag" href="/admin/stores/{{ s.id }}">查看/编辑</a></td>
     </tr>
     {% endfor %}
   </table>
