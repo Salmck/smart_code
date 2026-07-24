@@ -58,14 +58,26 @@ def stores_page(request: Request, user: AuthUser = Depends(require_admin), db=De
         "console/admin_stores.html", {"request": request, "user": user, "stores": stores})
 
 
+def _join_phones(phones: list[str]) -> str:
+    """多个电话输入合并为一列存储（逗号分隔，去空去重保序）。"""
+    seen, out = set(), []
+    for p in phones:
+        p = sanitize_text(p, 32).strip()
+        if p and p not in seen:
+            seen.add(p)
+            out.append(p)
+    return ",".join(out)[:256]
+
+
 @router.post("/stores")
 def create_store(user: AuthUser = Depends(require_admin), db=Depends(get_db),
                  name: str = Form(...), industry: str = Form("餐饮"),
-                 address: str = Form(""), phone: str = Form(""),
+                 address: str = Form(""), phones: list[str] = Form(default=[]),
                  auto_confirm: str = Form("")):
     s = catalog_service.create_store(
         db, name=sanitize_text(name, 128), industry=industry,
-        address=sanitize_text(address, 256), phone=phone, auto_confirm=bool(auto_confirm))
+        address=sanitize_text(address, 256), phone=_join_phones(phones),
+        auto_confirm=bool(auto_confirm))
     audit(db, user_id=user.id, role=user.role, store_id=s.id,
           action="create_store", target=f"store:{s.id}", after={"name": s.name})
     return RedirectResponse("/admin/stores", status_code=302)
@@ -97,7 +109,7 @@ def store_detail(store_id: int, request: Request,
 @router.post("/stores/{store_id}/edit")
 def edit_store(store_id: int, user: AuthUser = Depends(require_admin), db=Depends(get_db),
                name: str = Form(...), industry: str = Form("餐饮"),
-               address: str = Form(""), phone: str = Form(""),
+               address: str = Form(""), phones: list[str] = Form(default=[]),
                auto_confirm: str = Form("")):
     store = db.get(Store, store_id)
     if not store:
@@ -106,7 +118,7 @@ def edit_store(store_id: int, user: AuthUser = Depends(require_admin), db=Depend
     store.name = sanitize_text(name, 128)
     store.industry = industry
     store.address = sanitize_text(address, 256)
-    store.phone = sanitize_text(phone, 32)
+    store.phone = _join_phones(phones)
     store.auto_confirm = bool(auto_confirm)
     db.commit()
     audit(db, user_id=user.id, role=user.role, store_id=store.id, action="edit_store",

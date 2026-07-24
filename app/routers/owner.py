@@ -45,6 +45,21 @@ def _sid(user: AuthUser) -> int:
     return user.store_id
 
 
+def _parse_date_range(start_date: str, end_date: str):
+    """把表单的 YYYY-MM-DD 起止日期解析为活动起止时间。
+
+    开始 = 当日 00:00:00，结束 = 当日 23:59:59（凭证有效至结束日当天）。
+    任一为空或格式错误返回 (None, None)。
+    """
+    from datetime import datetime
+    try:
+        s = datetime.strptime(start_date.strip(), "%Y-%m-%d").replace(hour=0, minute=0, second=0)
+        e = datetime.strptime(end_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        return s, e
+    except (ValueError, AttributeError):
+        return None, None
+
+
 @router.get("")
 def dashboard(request: Request, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
     sid = _sid(user)
@@ -188,17 +203,23 @@ def campaigns(request: Request, user: AuthUser = Depends(require_owner), db=Depe
 def create_campaign(user: AuthUser = Depends(require_owner), db=Depends(get_db),
                     package_id: int = Form(...), name: str = Form(...),
                     stock: int = Form(...), per_person_limit: int = Form(1),
-                    voucher_valid_days: int = Form(14), need_reservation: str = Form(""),
+                    start_date: str = Form(""), end_date: str = Form(""),
+                    need_reservation: str = Form(""),
                     reservable_times: str = Form("")):
     sid = _sid(user)
     if int(stock) <= 0:
         return JSONResponse({"detail": "库存必须大于 0"}, status_code=400)
+    starts_at, ends_at = _parse_date_range(start_date, end_date)
+    if starts_at is None or ends_at is None:
+        return JSONResponse({"detail": "请填写活动开始与结束日期"}, status_code=400)
+    if ends_at < starts_at:
+        return JSONResponse({"detail": "结束日期不能早于开始日期"}, status_code=400)
     times = [t.strip() for t in reservable_times.split(",") if t.strip()]
     try:
         c = catalog_service.create_campaign(
             db, store_id=sid, package_id=int(package_id), name=sanitize_text(name, 128),
             stock=int(stock), per_person_limit=int(per_person_limit),
-            voucher_valid_days=int(voucher_valid_days),
+            starts_at=starts_at, ends_at=ends_at,
             need_reservation=bool(need_reservation), reservable_times=times)
     except ValueError as e:
         return JSONResponse({"detail": str(e)}, status_code=400)

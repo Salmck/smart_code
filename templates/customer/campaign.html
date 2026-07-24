@@ -28,7 +28,7 @@
 </div>
 
 <div class="c-card">
-  <div class="kv"><span class="k">有效期</span><span>领取后 {{ campaign.voucher_valid_days }} 天内有效</span></div>
+  <div class="kv"><span class="k">有效期</span><span>{% if campaign.ends_at %}{{ campaign.ends_at|dt('%Y-%m-%d') }} 前有效{% else %}领取后 {{ campaign.voucher_valid_days }} 天内有效{% endif %}</span></div>
   <div class="kv"><span class="k">是否需预约</span><span>{{ '需要提前预约' if campaign.need_reservation else '无需预约，直接到店' }}</span></div>
   <div class="kv"><span class="k">每人限领</span><span>{{ campaign.per_person_limit }} 份</span></div>
   <div class="trust">
@@ -50,12 +50,12 @@
     <div style="min-width:0">
       <div style="font-weight:700">{{ store.name }}</div>
       <div class="c-store" style="margin-top:2px">{{ store.address }}</div>
-      {% if store.phone %}<div class="c-store">{{ store.phone }}</div>{% endif %}
+      {% for ph in store.phone_list %}<div class="c-store">{{ ph }}</div>{% endfor %}
     </div>
   </div>
   <div class="store-actions">
     <a href="https://uri.amap.com/search?keyword={{ (store.name ~ ' ' ~ store.address)|urlencode }}" target="_blank">📍 导航到店</a>
-    {% if store.phone %}<a href="tel:{{ store.phone }}">📞 联系门店</a>{% endif %}
+    {% for ph in store.phone_list %}<a href="tel:{{ ph }}">📞 {{ '联系门店' if store.phone_list|length == 1 else ph }}</a>{% endfor %}
   </div>
 </div>
 

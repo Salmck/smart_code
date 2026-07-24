@@ -1,0 +1,23 @@
+<script>
+// 多电话输入：添加/删除行。表单以多个同名 phones 字段提交，后端合并存储。
+(function () {
+  const box = document.getElementById("phones-box");
+  const add = document.getElementById("add-phone");
+  if (!box || !add) return;
+  function newRow() {
+    const row = document.createElement("div");
+    row.className = "phone-row";
+    row.style.cssText = "display:flex;gap:6px;margin-bottom:6px";
+    row.innerHTML = '<input class="k-input" name="phones" value="" placeholder="如 0510-88888888 或手机号">' +
+      '<button type="button" class="k-btn k-btn-sm k-btn-ghost rm-phone">−</button>';
+    return row;
+  }
+  add.addEventListener("click", () => box.appendChild(newRow()));
+  box.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("rm-phone")) return;
+    const rows = box.querySelectorAll(".phone-row");
+    if (rows.length > 1) e.target.closest(".phone-row").remove();
+    else e.target.closest(".phone-row").querySelector("input").value = "";  // 至少留一行，清空即可
+  });
+})();
+</script>

@@ -25,10 +25,10 @@ def p(msg, ok=True):
 
 # ---------- 1. 管理员/老板登录 ----------
 admin = requests.Session()
-r = admin.post(f"{BASE}/api/staff/login", data={"username": "admin", "password": "admin123"})
+r = admin.post(f"{BASE}/api/staff/login", data={"username": "admin", "password": "admin-666"})
 p(f"管理员登录 (role={r.json().get('role')})", r.ok and r.json()["role"] == "admin")
 boss0 = requests.Session()
-boss0.post(f"{BASE}/api/staff/login", data={"username": "boss", "password": "boss123"})
+boss0.post(f"{BASE}/api/staff/login", data={"username": "boss", "password": "boss-666"})
 
 # ---------- 1b. 走真实配置流程：老板建套餐→建活动→提交，管理员审核通过 ----------
 sys.path.insert(0, ".")
@@ -46,7 +46,8 @@ from app.models import Package as _P
 _pid = SessionLocal().query(_P).filter_by(package_title=f"e2e胖头鱼套餐{tag}").first().id
 r = boss0.post(f"{BASE}/owner/campaigns", data={
     "package_id": _pid, "name": f"e2e家庭聚餐场{tag}", "stock": 50,
-    "need_reservation": "1", "reservable_times": "午市 11:00-14:00, 晚市 17:00-21:00"})
+    "need_reservation": "1", "start_date": "2026-07-01", "end_date": "2026-12-31",
+    "reservable_times": "11:00-14:00, 17:00-21:00"})
 p("老板创建活动(草稿)", r.ok)
 _camp = SessionLocal().query(_C).filter_by(name=f"e2e家庭聚餐场{tag}").first()
 r = boss0.post(f"{BASE}/owner/campaigns/{_camp.id}/submit")
@@ -87,14 +88,14 @@ p("验证手机号成功", r.ok and r.json().get("ok"))
 # ---------- 4. 顾客预约（活动需预约，人工确认 → pending 凭证）----------
 r = cust.post(f"{BASE}/api/customer/reserve",
               data={"short_code": qr_douyin, "name": "张先生", "date": "2026-07-20",
-                    "time": "晚市 17:00-21:00", "people": 6, "need_room": "1", "note": "靠窗"})
+                    "time": "18:30", "people": 6, "need_room": "1", "note": "靠窗"})
 p("提交预约", r.ok and r.json().get("ok"))
 voucher_code = r.json()["voucher_code"]
 p(f"生成核销凭证 {voucher_code}（状态应为待生效）", r.json()["reservation_status"] == "pending")
 
 # ---------- 5. 店员登录 ----------
 staff = requests.Session()
-r = staff.post(f"{BASE}/api/staff/login", data={"username": "staff", "password": "staff123"})
+r = staff.post(f"{BASE}/api/staff/login", data={"username": "staff", "password": "staff-666"})
 p("店员登录", r.ok)
 
 # ---------- 6. pending 凭证不可核销 ----------
@@ -104,7 +105,7 @@ p("查询 pending 凭证：不可核销", r.ok and not info["redeemable"])
 
 # ---------- 7. 老板确认预约 → 凭证转可用 + 扣库存 ----------
 boss = requests.Session()
-boss.post(f"{BASE}/api/staff/login", data={"username": "boss", "password": "boss123"})
+boss.post(f"{BASE}/api/staff/login", data={"username": "boss", "password": "boss-666"})
 r = boss.get(f"{BASE}/owner/reservations")
 res_id = re.search(r"/owner/reservations/(\d+)/action", r.text).group(1)
 r = boss.post(f"{BASE}/owner/reservations/{res_id}/action", data={"op": "confirm"})
@@ -119,7 +120,7 @@ vid_num = info["voucher_id"]
 # ---------- 9. 并发核销：只成功一次（防重复核销核心验收）----------
 def try_redeem(i):
     s = requests.Session()
-    s.post(f"{BASE}/api/staff/login", data={"username": "staff", "password": "staff123"})
+    s.post(f"{BASE}/api/staff/login", data={"username": "staff", "password": "staff-666"})
     # 不同 request_id 模拟两名店员/两次独立提交
     resp = s.post(f"{BASE}/staff/api/redeem",
                   data={"voucher_id": vid_num, "request_id": f"concurrent-{tag}-{i}"})

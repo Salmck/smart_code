@@ -14,14 +14,11 @@
   <label class="field-label">预约日期</label>
   <input id="r-date" class="c-input" type="date" required />
 
-  <label class="field-label">预约时间</label>
-  <div class="slot-grid" id="slot-grid">
-    {% set times = campaign.reservable_times if campaign.reservable_times else
-       ['11:00','11:30','12:00','12:30','13:00','17:00','17:30','18:00','18:30','19:00','19:30','20:00'] %}
-    {% for t in times %}
-    <div class="slot {{ 'wide' if t|length > 6 }}" data-t="{{ t }}">{{ t }}</div>
-    {% endfor %}
-  </div>
+  <label class="field-label">就餐时间</label>
+  <select id="r-time" class="c-input">
+    <option value="">请选择就餐时间</option>
+  </select>
+  <div class="muted" style="font-size:12px;margin-top:4px">可在营业时段内按 5 分钟精确选择</div>
 
   <label class="field-label">用餐人数</label>
   <div class="stepper">
@@ -73,7 +70,8 @@ const SHORT = "{{ short_code }}";
 const NEED_RES = {{ 'true' if campaign.need_reservation else 'false' }};
 let LOGGED_IN = {{ 'true' if logged_in else 'false' }};
 const $ = (id) => document.getElementById(id);
-let captchaId = null, pickedTime = "", people = 2;
+let captchaId = null, people = 2;
+const TIME_RANGES = {{ (campaign.reservable_times or ['11:00-14:00','17:00-21:00'])|tojson }};
 
 function msg(t, ok) { const e=$("msg"); e.textContent=t; e.className="msg "+(ok?"ok":"err"); }
 async function post(url, data) {
@@ -83,11 +81,30 @@ async function post(url, data) {
   return { ok: r.ok, data: await r.json() };
 }
 
-// 时间段芯片
-document.querySelectorAll(".slot").forEach(el => el.onclick = () => {
-  document.querySelectorAll(".slot").forEach(s => s.classList.remove("on"));
-  el.classList.add("on"); pickedTime = el.dataset.t;
-});
+// 就餐时间：从活动时段范围按 5 分钟粒度生成可选精确时间
+(function buildTimeOptions() {
+  const sel = $("r-time");
+  if (!sel) return;
+  const re = /(\d{1,2}):(\d{2})\s*[-~－到至]\s*(\d{1,2}):(\d{2})/;
+  const pad = (n) => String(n).padStart(2, "0");
+  TIME_RANGES.forEach((raw) => {
+    const m = re.exec(String(raw));
+    if (!m) return;
+    const start = (+m[1]) * 60 + (+m[2]);
+    const end = (+m[3]) * 60 + (+m[4]);
+    if (end < start) return;
+    const label = String(raw).replace(re, "").trim();
+    const group = document.createElement("optgroup");
+    group.label = (label ? label + " " : "") + `${pad(+m[1])}:${m[2]}–${pad(+m[3])}:${m[4]}`;
+    for (let t = start; t <= end; t += 5) {
+      const o = document.createElement("option");
+      o.value = `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
+      o.textContent = o.value;
+      group.appendChild(o);
+    }
+    sel.appendChild(group);
+  });
+})();
 // 人数步进
 if ($("p-minus")) {
   $("p-minus").onclick = () => { if (people > 1) $("p-num").textContent = --people; };
@@ -141,11 +158,12 @@ $("submit-btn").onclick = async () => {
   try {
     if (NEED_RES) {
       const date = $("r-date").value;
+      const time = $("r-time").value;
       if (!date) { msg("请选择预约日期"); return; }
-      if (!pickedTime) { msg("请选择预约时间"); return; }
+      if (!time) { msg("请选择就餐时间"); return; }
       if (!(await ensureVerified())) return;
       const { ok, data } = await post("/api/customer/reserve", {
-        short_code: SHORT, name: $("r-name").value, date, time: pickedTime,
+        short_code: SHORT, name: $("r-name").value, date, time: time,
         people: people, need_room: ($("r-room") && $("r-room").checked) ? "1" : "",
         note: $("r-note").value });
       if (!ok) { msg(data.detail); return; }

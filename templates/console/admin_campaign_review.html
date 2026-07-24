@@ -13,7 +13,7 @@
   <div class="card-h">活动规则</div>
   <table class="k-table">
     <tr><th>库存</th><td>{{ c.stock }}</td><th>每人限领/约</th><td>{{ c.per_person_limit }}</td></tr>
-    <tr><th>是否需预约</th><td>{{ '需要' if c.need_reservation else '无需' }}</td><th>凭证有效期</th><td>{{ c.voucher_valid_days }} 天</td></tr>
+    <tr><th>是否需预约</th><td>{{ '需要' if c.need_reservation else '无需' }}</td><th>活动日期</th><td>{{ c.starts_at|dt('%Y-%m-%d') }} ~ {{ c.ends_at|dt('%Y-%m-%d') }}（凭证有效至结束日）</td></tr>
     <tr><th>可预约时段</th><td colspan="3">{{ c.reservable_times|join('，') if c.reservable_times else '-' }}</td></tr>
   </table>
 </div>

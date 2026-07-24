@@ -21,12 +21,15 @@
     <div class="form-row">
       <div><label>库存 *</label><input class="k-input" name="stock" type="number" min="1" value="50" required></div>
       <div><label>每人限领/约</label><input class="k-input" name="per_person_limit" type="number" min="1" value="1"></div>
-      <div><label>凭证有效期(天)</label><input class="k-input" name="voucher_valid_days" type="number" min="1" value="14"></div>
       <div><label>是否需预约</label><select class="k-select" name="need_reservation">
         <option value="1">需要预约</option><option value="">无需预约</option></select></div>
     </div>
-    <div><label class="muted">可预约时间段（逗号分隔）</label>
-      <input class="k-input" name="reservable_times" style="margin-top:4px" placeholder="午市 11:00-14:00, 晚市 17:00-21:00"></div>
+    <div class="form-row">
+      <div><label>活动开始日期 *</label><input class="k-input" name="start_date" type="date" required></div>
+      <div><label>活动结束日期 *（凭证有效至当日）</label><input class="k-input" name="end_date" type="date" required></div>
+    </div>
+    <div><label class="muted">可预约时间段范围（顾客在此范围内按 5 分钟精确选择就餐时间；逗号分隔多段）</label>
+      <input class="k-input" name="reservable_times" style="margin-top:4px" placeholder="11:00-14:00, 17:00-21:00"></div>
     <button class="k-btn" style="margin-top:14px">保存为草稿</button>
   </form>
   {% endif %}

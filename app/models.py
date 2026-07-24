@@ -134,10 +134,16 @@ class Store(Base):
     name = Column(String(128), nullable=False)
     industry = Column(String(32), nullable=False, default="餐饮")
     address = Column(String(256), default="")
-    phone = Column(String(32), default="")
+    phone = Column(String(256), default="")            # 可多个，逗号/换行分隔
     auto_confirm = Column(Boolean, default=False)      # 预约是否自动确认
     status = Column(String(16), nullable=False, default="active")  # active/suspended
     created_at = Column(DateTime, default=now_utc)
+
+    @property
+    def phone_list(self) -> list[str]:
+        """拆出所有联系电话（顾客端逐个渲染呼叫按钮）。"""
+        import re
+        return [p.strip() for p in re.split(r"[,，;；\n]+", self.phone or "") if p.strip()]
 
 
 class StoreMember(Base):

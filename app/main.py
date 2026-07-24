@@ -40,11 +40,12 @@ def _startup():
     init_db()
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     # 首次启动自动灌入演示数据（幂等）
-    from .seed import seed_all
+    from .seed import reconcile_demo_passwords, seed_all
     from .db import SessionLocal
     db = SessionLocal()
     try:
         seed_all(db)
+        reconcile_demo_passwords(db)  # 已上线的旧库也把演示账号密码升级为「用户名-666」
     finally:
         db.close()
 
@@ -61,6 +62,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # 上传文件（套餐图/参考海报）对外访问
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """根路径无独立首页，直接跳到后台登录页。"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/login", status_code=302)
 
 
 @app.get("/healthz")

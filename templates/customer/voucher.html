@@ -43,7 +43,7 @@
 
 <div class="cta-bar">
   <a class="btn btn-ghost" href="/my/vouchers">我的凭证</a>
-  {% if store.phone %}<a class="btn btn-primary" href="tel:{{ store.phone }}">联系门店</a>{% endif %}
+  {% if store.phone_list %}<a class="btn btn-primary" href="tel:{{ store.phone_list[0] }}">联系门店</a>{% endif %}
 </div>
 {% endblock %}
 

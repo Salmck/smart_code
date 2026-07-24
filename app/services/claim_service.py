@@ -75,7 +75,11 @@ def _decrement_stock(db, campaign_id: int) -> bool:
 
 
 def _new_voucher(db, *, campaign, customer_id, ctx, status, reservation_id=None) -> Voucher:
-    expires_at = now_utc() + timedelta(days=campaign.voucher_valid_days or 14)
+    # 凭证有效期跟随活动结束日期；老数据无 ends_at 时回退到「领取后 N 天」。
+    if campaign.ends_at:
+        expires_at = campaign.ends_at
+    else:
+        expires_at = now_utc() + timedelta(days=campaign.voucher_valid_days or 14)
     for _ in range(10):
         code = gen_shortcode(settings.VOUCHER_CODE_LENGTH)
         if not db.query(Voucher).filter_by(code=code).first():

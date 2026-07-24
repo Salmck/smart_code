@@ -20,12 +20,38 @@ from .security import hash_password
 
 logger = logging.getLogger("seed")
 
-# 演示账号（README 有说明）
+# 演示账号（README 有说明）：密码 = 用户名 + "-666"
 DEMO_ACCOUNTS = [
-    ("admin", "admin123", "平台管理员", Role.ADMIN),
-    ("boss", "boss123", "炳焱私房菜老板", Role.OWNER),
-    ("staff", "staff123", "前厅店员小李", Role.STAFF),
+    ("admin", "admin-666", "平台管理员", Role.ADMIN),
+    ("boss", "boss-666", "炳焱私房菜老板", Role.OWNER),
+    ("staff", "staff-666", "前厅店员小李", Role.STAFF),
 ]
+
+# 旧默认密码（用于把已建库中仍是旧默认的账号平滑升级到新密码）
+_LEGACY_PASSWORDS = {"admin": "admin123", "boss": "boss123", "staff": "staff123"}
+
+
+def reconcile_demo_passwords(db):
+    """把 admin/boss/staff 的密码统一为「用户名-666」。
+
+    仅当账号当前仍是旧默认密码时才重置，避免覆盖用户后来自行修改过的密码。
+    每次启动幂等执行，兼顾全新库与已上线的旧库。
+    """
+    from .security import verify_password
+    changed = []
+    for username, new_pwd, _name, _role in DEMO_ACCOUNTS:
+        u = db.query(User).filter_by(username=username).first()
+        if not u:
+            continue
+        if verify_password(new_pwd, u.password_hash):
+            continue  # 已是新密码
+        legacy = _LEGACY_PASSWORDS.get(username)
+        if legacy and verify_password(legacy, u.password_hash):
+            u.password_hash = hash_password(new_pwd)
+            changed.append(username)
+    if changed:
+        db.commit()
+        logger.info("演示账号密码已升级为「用户名-666」：%s", ", ".join(changed))
 
 
 def seed_all(db):
