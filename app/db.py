@@ -62,12 +62,66 @@ def _schema_outdated() -> bool:
     return False
 
 
+def _migrate_additive() -> list[str]:
+    """非破坏式迁移：新增缺失的表与列，绝不删除数据。返回已执行的变更说明。
+
+    仅能处理「加表 / 加列」这类向后兼容的结构演进。改列类型、删列、加唯一约束等
+    需要重建表的变更不在此列——生产环境应改用正式迁移工具（如 Alembic）。
+    """
+    from sqlalchemy import inspect, text
+
+    changes: list[str] = []
+    # create_all 只创建缺失的表，已存在的表不动，天然幂等且安全
+    Base.metadata.create_all(bind=engine)
+
+    insp = inspect(engine)
+    dialect = engine.dialect
+    with engine.begin() as conn:
+        for table in Base.metadata.tables.values():
+            if table.name not in set(insp.get_table_names()):
+                changes.append(f"新建表 {table.name}")
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in have:
+                    continue
+                col_type = col.type.compile(dialect=dialect)
+                ddl = f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}'
+                # 已有数据行需要填充默认值：优先用 server_default，其次对可空列留空。
+                if col.server_default is not None:
+                    default_sql = col.server_default.arg
+                    default_sql = getattr(default_sql, "text", default_sql)
+                    ddl += f" DEFAULT {default_sql}"
+                elif not col.nullable:
+                    # SQLite 给已有行加非空列必须带默认值，退化为按类型给零值。
+                    fallback = "0" if "INT" in col_type.upper() or "NUM" in col_type.upper() else "''"
+                    ddl += f" NOT NULL DEFAULT {fallback}"
+                conn.execute(text(ddl))
+                changes.append(f"{table.name}.{col.name} (+列)")
+    return changes
+
+
 def init_db():
-    """建表（幂等）。结构过期时自动重建（当前为演示阶段，允许清空重灌）。"""
+    """建表并按需迁移。
+
+    生产（DEBUG=False）：只做非破坏式加表/加列，绝不清空数据。
+    开发（DEBUG=True）：结构过期时自动重建并清空，便于快速迭代演示数据。
+    """
     import logging
     from . import models  # noqa: F401  确保模型已注册
+    log = logging.getLogger("db")
 
-    if _schema_outdated():
-        logging.getLogger("db").warning("检测到数据库结构过期，自动重建并清空旧数据 …")
+    if not _schema_outdated():
+        Base.metadata.create_all(bind=engine)
+        return
+
+    if settings.DEBUG:
+        log.warning("检测到数据库结构过期（DEBUG 模式），自动重建并清空旧数据 …")
         Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        return
+
+    log.warning("检测到数据库结构过期（生产模式），执行非破坏式迁移，保留现有数据 …")
+    changes = _migrate_additive()
+    if changes:
+        log.warning("已应用结构变更：%s", "，".join(changes))
