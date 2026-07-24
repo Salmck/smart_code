@@ -1,0 +1,23 @@
+[Unit]
+Description=Ordinex 专属增长码系统 (uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+# ↓↓↓ 按你的服务器实际情况改这 4 处 ↓↓↓
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/ordinex
+EnvironmentFile=/opt/ordinex/deploy/ordinex.env
+ExecStart=/opt/ordinex/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 \
+    --proxy-headers --forwarded-allow-ips="127.0.0.1"
+
+Restart=always
+RestartSec=3
+# 崩溃日志进 journald：journalctl -u ordinex -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
