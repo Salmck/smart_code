@@ -63,7 +63,12 @@ def send_customer_code(db, phone: str, ip: str, captcha_id: str, captcha_answer:
 
     code = gen_digits(settings.CODE_LENGTH)
     store.save_code(phone, code, settings.CODE_TTL_SECONDS)
-    sms.send_sms(phone, code)
+    try:
+        sms.send_sms(phone, code)
+    except sms.SmsError as e:
+        # 发送失败：清掉刚存的验证码，让用户可立即重试
+        store.delete_code(phone)
+        raise AuthError(str(e), 502)
 
     resp = {"ok": True, "expires_in": settings.CODE_TTL_SECONDS}
     if settings.DEBUG:

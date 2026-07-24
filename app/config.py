@@ -22,6 +22,16 @@ class Settings:
     STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "local") # local/oss/cos
     NOTIFY_PROVIDER: str = os.getenv("NOTIFY_PROVIDER", "mock")    # mock/sms/wechat
 
+    # ---- 阿里云短信（SMS_PROVIDER=aliyun 时生效）----
+    # 控制台申请：短信签名 SignName、验证码模板 TemplateCode、AccessKey。
+    ALIYUN_SMS_ACCESS_KEY_ID: str = os.getenv("ALIYUN_SMS_ACCESS_KEY_ID", "")
+    ALIYUN_SMS_ACCESS_KEY_SECRET: str = os.getenv("ALIYUN_SMS_ACCESS_KEY_SECRET", "")
+    ALIYUN_SMS_SIGN_NAME: str = os.getenv("ALIYUN_SMS_SIGN_NAME", "")       # 如「无界序」
+    ALIYUN_SMS_TEMPLATE_CODE: str = os.getenv("ALIYUN_SMS_TEMPLATE_CODE", "")  # 如 SMS_123456789
+    # 模板里的变量名：模板内容「您的验证码是${code}」→ 填 code
+    ALIYUN_SMS_TEMPLATE_PARAM: str = os.getenv("ALIYUN_SMS_TEMPLATE_PARAM", "code")
+    ALIYUN_SMS_REGION: str = os.getenv("ALIYUN_SMS_REGION", "cn-hangzhou")
+
     # ---- 验证码规则（PRD 流程六）----
     CODE_LENGTH: int = 6
     CODE_TTL_SECONDS: int = 300              # 验证码有效期 5 分钟

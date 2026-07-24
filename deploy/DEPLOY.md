@@ -75,6 +75,33 @@ sudo systemctl restart ordinex
 现有门店/凭证/核销数据全部保留。改列类型、删列这类需重建表的变更不在自动范围内，
 遇到时需手动处理（或引入 Alembic）。
 
+## 开启真实短信验证码（阿里云）
+
+默认 `SMS_PROVIDER=mock`，验证码只打到日志。要真实发短信：
+
+1. **阿里云短信控制台**准备三样（备案通过后才能申请国内短信）：
+   - **短信签名**（如「无界序」）→ 审核通过
+   - **验证码模板**，内容形如 `您的验证码是${code}，5分钟内有效，请勿泄露。` → 审核通过，记下模板 CODE（`SMS_xxxxxxxx`）
+   - **AccessKey**（建议用子账号 RAM，只授予 `AliyunDysmsFullAccess`）
+2. 填进 `deploy/ordinex.env`：
+   ```
+   SMS_PROVIDER=aliyun
+   ALIYUN_SMS_ACCESS_KEY_ID=...
+   ALIYUN_SMS_ACCESS_KEY_SECRET=...
+   ALIYUN_SMS_SIGN_NAME=无界序
+   ALIYUN_SMS_TEMPLATE_CODE=SMS_xxxxxxxx
+   ALIYUN_SMS_TEMPLATE_PARAM=code        # 与模板里 ${code} 的变量名一致
+   ```
+3. 重启：`sudo systemctl restart ordinex`
+4. 手机实测收码。失败时看日志定位：`journalctl -u ordinex -f`
+   - `isv.BUSINESS_LIMIT_CONTROL` = 触发频控（同号 1 条/分、5 条/天等，阿里云侧默认限制）
+   - `isv.MOBILE_NUMBER_ILLEGAL` = 号码格式非法
+   - `isv.SMS_SIGNATURE_ILLEGAL` / `isv.SMS_TEMPLATE_ILLEGAL` = 签名或模板 CODE 不对
+
+> 防刷：发码接口已有限流（同号 60s 冷却、5 条/小时，同 IP 20 条/小时）+ 人机验证。
+> 人机验证目前仍是内置算术题（mock），若上线后遭遇恶意刷短信、担心话费，
+> 可后续接入阿里云验证码 2.0 或 Cloudflare Turnstile（`CAPTCHA_PROVIDER` 已预留切换点）。
+
 ## 数据备份（重要）
 SQLite 全部数据就在一个文件里，定时备份它 + 上传目录即可：
 ```bash
