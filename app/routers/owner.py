@@ -60,6 +60,69 @@ def _parse_date_range(start_date: str, end_date: str):
         return None, None
 
 
+def _parse_menu(raw: str) -> list:
+    """把前端提交的团购详情 JSON 解析、清洗为 [{title, items:[{name, qty, price}]}]。"""
+    import json
+    try:
+        data = json.loads(raw or "[]")
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for sec in data[:20]:
+        if not isinstance(sec, dict):
+            continue
+        title = sanitize_text(str(sec.get("title", "")), 40).strip()
+        items = []
+        for it in (sec.get("items") or [])[:40]:
+            if not isinstance(it, dict):
+                continue
+            name = sanitize_text(str(it.get("name", "")), 100).strip()
+            if not name:
+                continue
+            qty = sanitize_text(str(it.get("qty", "")), 20).strip()
+            try:
+                price = round(float(it.get("price") or 0), 2)
+                price = max(price, 0)
+            except (ValueError, TypeError):
+                price = 0
+            items.append({"name": name, "qty": qty, "price": price})
+        if title or items:
+            out.append({"title": title, "items": items})
+    return out
+
+
+async def _save_detail_images(files, keep_raw: str, package_id: int) -> list:
+    """菜品多图：保留 keep_raw 里的旧图 URL + 追加新上传，返回最终 URL 列表。"""
+    import json
+    import os
+    import time
+    from ..config import settings as _s
+    try:
+        keep = json.loads(keep_raw or "[]")
+    except (ValueError, TypeError):
+        keep = []
+    kept = [u for u in keep if isinstance(u, str) and u.startswith("/uploads/")][:20]
+    os.makedirs(_s.UPLOAD_DIR, exist_ok=True)
+    for i, f in enumerate(files or []):
+        if len(kept) >= 20:
+            break
+        if not (f and f.filename):
+            continue
+        ext = os.path.splitext(f.filename)[1].lower() or ".jpg"
+        if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+            continue
+        data = await f.read()
+        if not data or len(data) > 8 * 1024 * 1024:
+            continue
+        fname = f"pkgdt_{package_id}_{int(time.time() * 1000)}_{i}{ext}"
+        with open(os.path.join(_s.UPLOAD_DIR, fname), "wb") as w:
+            w.write(data)
+        kept.append(f"/uploads/{fname}")
+    return kept
+
+
 @router.get("")
 def dashboard(request: Request, user: AuthUser = Depends(require_owner), db=Depends(get_db)):
     sid = _sid(user)
@@ -102,11 +165,13 @@ def strategy_detail(action_id: int, user: AuthUser = Depends(require_owner), db=
 @router.post("/packages")
 async def create_package(user: AuthUser = Depends(require_owner), db=Depends(get_db),
                          growth_action_id: int = Form(...), package_title: str = Form(...),
-                         package_content: str = Form(...), people: str = Form(""),
+                         package_content: str = Form(""), people: str = Form(""),
                          original_price: float = Form(0), price: float = Form(...),
                          package_desc: str = Form(""), usage_rules: str = Form(""),
-                         supports_room: str = Form(""),
-                         image: UploadFile | None = File(None)):
+                         supports_room: str = Form(""), menu_json: str = Form(""),
+                         detail_keep: str = Form(""),
+                         image: UploadFile | None = File(None),
+                         detail_images: list[UploadFile] = File(default=[])):
     sid = _sid(user)
     a = db.get(GrowthAction, int(growth_action_id))
     if not a or a.store_id != sid:
@@ -138,6 +203,10 @@ async def create_package(user: AuthUser = Depends(require_owner), db=Depends(get
                     f.write(data)
                 p.main_image = f"/uploads/{fname}"
                 db.commit()
+    # 团购详情栏目 + 菜品多图
+    p.menu_sections = _parse_menu(menu_json)
+    p.detail_images = await _save_detail_images(detail_images, detail_keep, p.id)
+    db.commit()
     audit(db, user_id=user.id, role=user.role, store_id=sid, action="create_package",
           target=f"package:{p.id}", after={"title": p.package_title})
     return RedirectResponse("/owner/packages", status_code=302)
@@ -146,11 +215,13 @@ async def create_package(user: AuthUser = Depends(require_owner), db=Depends(get
 @router.post("/packages/{package_id}/edit")
 async def edit_package(package_id: int, user: AuthUser = Depends(require_owner),
                        db=Depends(get_db),
-                       package_title: str = Form(...), package_content: str = Form(...),
+                       package_title: str = Form(...), package_content: str = Form(""),
                        people: str = Form(""), original_price: float = Form(0),
                        price: float = Form(...), package_desc: str = Form(""),
                        usage_rules: str = Form(""), supports_room: str = Form(""),
-                       image: UploadFile | None = File(None)):
+                       menu_json: str = Form(""), detail_keep: str = Form(""),
+                       image: UploadFile | None = File(None),
+                       detail_images: list[UploadFile] = File(default=[])):
     sid = _sid(user)
     p = db.get(Package, package_id)
     if not p or p.store_id != sid:
@@ -181,6 +252,10 @@ async def edit_package(package_id: int, user: AuthUser = Depends(require_owner),
                     f.write(data)
                 p.main_image = f"/uploads/{fname}"
                 db.commit()
+    # 团购详情栏目 + 菜品多图（keep 保留旧图、上传追加）
+    p.menu_sections = _parse_menu(menu_json)
+    p.detail_images = await _save_detail_images(detail_images, detail_keep, p.id)
+    db.commit()
     audit(db, user_id=user.id, role=user.role, store_id=sid, action="edit_package",
           target=f"package:{p.id}", before=before,
           after={"title": p.package_title, "price": p.price})

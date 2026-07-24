@@ -34,9 +34,10 @@
       <div><label>适用人数 *</label><input class="k-input" name="people" placeholder="6-8人" required></div>
     </div>
     <div class="form-row">
-      <div style="grid-column:1/3"><label>套餐内容 *</label><input class="k-input" name="package_content" required placeholder="胖头鱼一条 · 红烧肉 · 时蔬2份 · 主食 · 例汤"></div>
+      <div style="grid-column:1/3"><label>套餐内容简述（选填）</label><input class="k-input" name="package_content" placeholder="一句话概括，如：胖头鱼一条 · 红烧肉 · 时蔬2份 · 主食 · 例汤"></div>
     </div>
-    <div class="form-row">
+    {% set p = None %}{% include "console/_menu_fields.html" %}
+    <div class="form-row" style="margin-top:12px">
       <div><label>原价</label><input class="k-input" name="original_price" type="number" min="0" value="0"></div>
       <div><label>活动价 *</label><input class="k-input" name="price" type="number" min="0.01" step="0.01" required></div>
       <div style="display:flex;align-items:flex-end;padding-bottom:8px">
@@ -79,9 +80,10 @@
         <div><label>适用人数</label><input class="k-input" name="people" value="{{ row.p.people }}"></div>
       </div>
       <div class="form-row">
-        <div style="grid-column:1/3"><label>套餐内容 *</label><input class="k-input" name="package_content" value="{{ row.p.package_content }}" required></div>
+        <div style="grid-column:1/3"><label>套餐内容简述（选填）</label><input class="k-input" name="package_content" value="{{ row.p.package_content }}"></div>
       </div>
-      <div class="form-row">
+      {% set p = row.p %}{% include "console/_menu_fields.html" %}
+      <div class="form-row" style="margin-top:12px">
         <div><label>原价</label><input class="k-input" name="original_price" type="number" min="0" step="0.01" value="{{ row.p.original_price|yuan }}"></div>
         <div><label>活动价 *</label><input class="k-input" name="price" type="number" min="0.01" step="0.01" value="{{ row.p.price|yuan }}" required></div>
         <div style="display:flex;align-items:flex-end;padding-bottom:8px">
@@ -142,4 +144,5 @@ async function loadStrategy() {
   hint.style.display = 'block';
 }
 </script>
+{% include "console/_menu_fields_script.html" %}
 {% endblock %}

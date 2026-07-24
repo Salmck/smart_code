@@ -22,10 +22,37 @@
   {% if campaign.package_desc %}<p style="color:#4b5563;font-size:14px;line-height:1.7">{{ campaign.package_desc }}</p>{% endif %}
 </div>
 
+{% if campaign.menu_sections %}
+<div class="c-card">
+  <div class="kv"><span class="k">团购详情</span></div>
+  {% for sec in campaign.menu_sections %}
+    {% if sec.title %}<div class="menu-sec-title">{{ sec.title }}</div>{% endif %}
+    {% for it in sec['items'] %}
+    <div class="menu-item">
+      <span class="mi-name">{{ it.name }}</span>
+      {% if it.qty %}<span class="mi-qty">{{ it.qty }}</span>{% endif %}
+      {% if it.price %}<span class="mi-price">¥{{ it.price|yuan }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% elif campaign.package_content %}
 <div class="c-card">
   <div class="kv"><span class="k">套餐内容</span></div>
   <p style="color:#374151;font-size:14px;line-height:1.9;white-space:pre-line;margin:8px 0 0">{{ campaign.package_content }}</p>
 </div>
+{% endif %}
+
+{% if campaign.detail_images %}
+<div class="c-card">
+  <div class="kv"><span class="k">菜品实拍</span></div>
+  <div style="margin-top:8px">
+    {% for u in campaign.detail_images %}
+    <img src="{{ u }}" alt="菜品图" loading="lazy" style="width:100%;border-radius:10px;margin-bottom:8px;display:block">
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <div class="c-card">
   <div class="kv"><span class="k">有效期</span><span>{% if campaign.ends_at %}{{ campaign.ends_at|dt('%Y-%m-%d') }} 前有效{% else %}领取后 {{ campaign.voucher_valid_days }} 天内有效{% endif %}</span></div>

@@ -203,7 +203,9 @@ class Package(Base):
     package_desc = Column(Text, default="")            # 套餐介绍
     package_content = Column(Text, default="")         # 套餐包含内容
     main_image = Column(String(256), default="")       # 套餐主图 URL
-    detail_images = Column(JSON, default=list)         # 详情图 URL 列表
+    detail_images = Column(JSON, default=list)         # 菜品图片 URL 列表（详情底部多图）
+    # 团购详情：栏目化菜单 [{title, items:[{name, qty, price}]}]（仿美团套餐详情）
+    menu_sections = Column(JSON, default=list)
     people = Column(String(32), default="")            # 适用人数（文本，如 6-8人）
     original_price = Column(Float, default=0)          # 原价
     price = Column(Float, default=0)                   # 活动价
@@ -260,6 +262,10 @@ class Campaign(Base):
     @property
     def detail_images(self):
         return self.package.detail_images if self.package else []
+
+    @property
+    def menu_sections(self):
+        return self.package.menu_sections if self.package else []
 
     @property
     def people(self):

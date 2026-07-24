@@ -1,0 +1,20 @@
+<!-- 团购详情（栏目·菜式）+ 菜品多图。调用前用 {% set p = 套餐 or None %} -->
+<div style="margin-top:12px">
+  <label class="muted">团购详情（栏目 → 菜式 / 份数 / 价格，仿美团套餐详情）</label>
+  <div class="menu-builder" data-initial='{{ ((p.menu_sections or []) if p else [])|tojson }}'>
+    <input type="hidden" name="menu_json" value="">
+    <div class="mb-sections"></div>
+    <button type="button" class="k-btn k-btn-sm k-btn-ghost mb-add-section" style="margin-top:8px">+ 添加栏目</button>
+  </div>
+</div>
+<div style="margin-top:12px">
+  <label class="muted">菜品图片（可多张，显示在顾客详情页底部）</label>
+  <div class="detail-imgs" data-initial='{{ ((p.detail_images or []) if p else [])|tojson }}'>
+    <div class="di-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>
+    <input type="hidden" name="detail_keep" value="">
+    <label class="k-btn k-btn-sm k-btn-ghost" style="cursor:pointer">
+      添加图片 <input type="file" name="detail_images" accept="image/*" multiple style="display:none" class="di-input">
+    </label>
+    <span class="muted di-tip" style="margin-left:8px"></span>
+  </div>
+</div>

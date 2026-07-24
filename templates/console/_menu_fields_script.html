@@ -1,0 +1,113 @@
+<script>
+// 团购详情栏目 builder + 菜品多图，初始化页面上所有表单里的对应控件
+(function () {
+  // ---------- 团购详情栏目 ----------
+  document.querySelectorAll(".menu-builder").forEach((mb) => {
+    const box = mb.querySelector(".mb-sections");
+    const hidden = mb.querySelector('input[name="menu_json"]');
+    let initial = [];
+    try { initial = JSON.parse(mb.dataset.initial || "[]") || []; } catch (e) {}
+
+    function itemRow(it) {
+      const row = document.createElement("div");
+      row.className = "mb-item";
+      row.style.cssText = "display:flex;gap:6px;margin-top:6px";
+      row.innerHTML =
+        '<input class="k-input mb-name" placeholder="菜名" style="flex:3">' +
+        '<input class="k-input mb-qty" placeholder="1份" style="flex:0 0 68px">' +
+        '<input class="k-input mb-price" type="number" min="0" step="0.01" placeholder="价格" style="flex:0 0 88px">' +
+        '<button type="button" class="k-btn k-btn-sm k-btn-ghost mb-del-item">−</button>';
+      if (it) {
+        row.querySelector(".mb-name").value = it.name || "";
+        row.querySelector(".mb-qty").value = it.qty || "";
+        row.querySelector(".mb-price").value = (it.price != null ? it.price : "");
+      }
+      return row;
+    }
+    function sectionRow(sec) {
+      const wrap = document.createElement("div");
+      wrap.className = "mb-section";
+      wrap.style.cssText = "border:1px solid #1f2740;border-radius:10px;padding:10px;margin-top:8px;background:#0f1526";
+      wrap.innerHTML =
+        '<div style="display:flex;gap:6px;align-items:center">' +
+          '<input class="k-input mb-sec-title" placeholder="栏目标题，如 招牌必点 / 金牌推荐2选1" style="flex:1">' +
+          '<button type="button" class="k-btn k-btn-sm k-btn-ghost mb-del-section">删栏目</button>' +
+        '</div><div class="mb-items"></div>' +
+        '<button type="button" class="k-btn k-btn-sm k-btn-ghost mb-add-item" style="margin-top:6px">+ 添加菜式</button>';
+      const items = wrap.querySelector(".mb-items");
+      if (sec) {
+        wrap.querySelector(".mb-sec-title").value = sec.title || "";
+        (sec.items || []).forEach((it) => items.appendChild(itemRow(it)));
+      }
+      if (!items.children.length) items.appendChild(itemRow(null));
+      return wrap;
+    }
+
+    mb.querySelector(".mb-add-section").addEventListener("click", () => box.appendChild(sectionRow(null)));
+    box.addEventListener("click", (e) => {
+      const t = e.target;
+      if (t.classList.contains("mb-del-section")) {
+        if (box.querySelectorAll(".mb-section").length > 1) t.closest(".mb-section").remove();
+        else { t.closest(".mb-section").querySelector(".mb-sec-title").value = ""; t.closest(".mb-section").querySelectorAll(".mb-item").forEach((r,i)=>{ if(i) r.remove(); else r.querySelectorAll("input").forEach(x=>x.value=""); }); }
+      } else if (t.classList.contains("mb-add-item")) {
+        t.closest(".mb-section").querySelector(".mb-items").appendChild(itemRow(null));
+      } else if (t.classList.contains("mb-del-item")) {
+        const items = t.closest(".mb-items");
+        if (items.children.length > 1) t.closest(".mb-item").remove();
+        else t.closest(".mb-item").querySelectorAll("input").forEach((x) => (x.value = ""));
+      }
+    });
+
+    initial.forEach((sec) => box.appendChild(sectionRow(sec)));
+    if (!box.children.length) box.appendChild(sectionRow(null));
+
+    const form = mb.closest("form");
+    if (form) form.addEventListener("submit", () => {
+      const secs = [];
+      box.querySelectorAll(".mb-section").forEach((sw) => {
+        const title = sw.querySelector(".mb-sec-title").value.trim();
+        const items = [];
+        sw.querySelectorAll(".mb-item").forEach((iw) => {
+          const name = iw.querySelector(".mb-name").value.trim();
+          if (!name) return;
+          items.push({ name, qty: iw.querySelector(".mb-qty").value.trim(),
+                       price: parseFloat(iw.querySelector(".mb-price").value) || 0 });
+        });
+        if (title || items.length) secs.push({ title, items });
+      });
+      hidden.value = JSON.stringify(secs);
+    });
+  });
+
+  // ---------- 菜品多图 ----------
+  document.querySelectorAll(".detail-imgs").forEach((di) => {
+    const thumbs = di.querySelector(".di-thumbs");
+    const keep = di.querySelector('input[name="detail_keep"]');
+    const input = di.querySelector(".di-input");
+    const tip = di.querySelector(".di-tip");
+    let urls = [];
+    try { urls = JSON.parse(di.dataset.initial || "[]") || []; } catch (e) {}
+    function render() {
+      thumbs.innerHTML = "";
+      urls.forEach((u, i) => {
+        const box = document.createElement("div");
+        box.style.cssText = "position:relative";
+        box.innerHTML =
+          '<img src="' + u + '" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #1f2740">' +
+          '<button type="button" data-i="' + i + '" class="di-rm" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;line-height:18px;text-align:center;border-radius:50%;border:none;background:#ef4444;color:#fff;cursor:pointer">×</button>';
+        thumbs.appendChild(box);
+      });
+      keep.value = JSON.stringify(urls);
+    }
+    thumbs.addEventListener("click", (e) => {
+      if (!e.target.classList.contains("di-rm")) return;
+      urls.splice(+e.target.dataset.i, 1); render();
+    });
+    if (input) input.addEventListener("change", () => {
+      const n = input.files ? input.files.length : 0;
+      if (tip) tip.textContent = n ? (n + " 张新图，保存后生效") : "";
+    });
+    render();
+  });
+})();
+</script>

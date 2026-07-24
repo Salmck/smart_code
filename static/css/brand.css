@@ -41,6 +41,14 @@ div.c-hero { aspect-ratio: 16/10; }
 .kv:last-child { border-bottom: none; }
 .kv .k { color: #6b7280; }
 .rules { font-size: 13px; color: #6b7280; line-height: 1.8; white-space: pre-line; }
+/* 团购详情：栏目菜单 */
+.menu-sec-title { font-weight: 700; color: #111827; font-size: 15px; margin: 16px 0 4px; }
+.menu-sec-title:first-of-type { margin-top: 8px; }
+.menu-item { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px dashed #eee; }
+.menu-item:last-child { border-bottom: none; }
+.mi-name { flex: 1; color: #374151; font-size: 14px; line-height: 1.5; min-width: 0; }
+.mi-qty { color: #9ca3af; font-size: 13px; flex: 0 0 auto; }
+.mi-price { color: #374151; font-size: 14px; font-weight: 600; flex: 0 0 auto; min-width: 50px; text-align: right; }
 .trust { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .trust span { font-size: 12px; background: #f3f4f6; color: #4b5563; padding: 4px 10px; border-radius: 8px; }
 
