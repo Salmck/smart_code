@@ -226,6 +226,8 @@ class Campaign(Base):
     need_reservation = Column(Boolean, default=False)  # 是否需要预约（决定唯一入口）
     reservable_dates = Column(JSON, default=list)      # 可预约日期
     reservable_times = Column(JSON, default=list)      # 可预约时间段
+    min_people = Column(Integer, default=1)            # 预约人数下限（老板设置）
+    max_people = Column(Integer, default=20)           # 预约人数上限（老板设置）
     voucher_valid_days = Column(Integer, default=14)   # 凭证有效期（领取后 N 天）
     starts_at = Column(DateTime, nullable=True)
     ends_at = Column(DateTime, nullable=True)

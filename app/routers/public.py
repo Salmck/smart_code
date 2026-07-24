@@ -210,6 +210,9 @@ def reserve(short_code: str = Form(...), db=Depends(get_db),
     if not qr or not campaign:
         raise HTTPException(status_code=404, detail="无效二维码")
     ctx = AttributionContext.from_qr(qr)
+    # 人数收敛到老板设置的范围内，防止绕过前端提交越界值
+    lo, hi = campaign.min_people or 1, campaign.max_people or 20
+    people = min(max(int(people), lo), hi)
     try:
         reservation, voucher = claim_service.create_reservation(
             db, campaign=campaign, customer_id=customer_id, ctx=ctx,

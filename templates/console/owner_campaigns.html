@@ -28,6 +28,10 @@
       <div><label>活动开始日期 *</label><input class="k-input" name="start_date" type="date" required></div>
       <div><label>活动结束日期 *（凭证有效至当日）</label><input class="k-input" name="end_date" type="date" required></div>
     </div>
+    <div class="form-row">
+      <div><label>预约人数下限</label><input class="k-input" name="min_people" type="number" min="1" value="1"></div>
+      <div><label>预约人数上限</label><input class="k-input" name="max_people" type="number" min="1" value="10"></div>
+    </div>
     <div><label class="muted">可预约时间段范围（顾客在此范围内按 5 分钟精确选择就餐时间；逗号分隔多段）</label>
       <input class="k-input" name="reservable_times" style="margin-top:4px" placeholder="11:00-14:00, 17:00-21:00"></div>
     <button class="k-btn" style="margin-top:14px">保存为草稿</button>

@@ -204,6 +204,7 @@ def create_campaign(user: AuthUser = Depends(require_owner), db=Depends(get_db),
                     package_id: int = Form(...), name: str = Form(...),
                     stock: int = Form(...), per_person_limit: int = Form(1),
                     start_date: str = Form(""), end_date: str = Form(""),
+                    min_people: int = Form(1), max_people: int = Form(20),
                     need_reservation: str = Form(""),
                     reservable_times: str = Form("")):
     sid = _sid(user)
@@ -214,12 +215,16 @@ def create_campaign(user: AuthUser = Depends(require_owner), db=Depends(get_db),
         return JSONResponse({"detail": "请填写活动开始与结束日期"}, status_code=400)
     if ends_at < starts_at:
         return JSONResponse({"detail": "结束日期不能早于开始日期"}, status_code=400)
+    lo, hi = max(1, int(min_people)), max(1, int(max_people))
+    if hi < lo:
+        lo, hi = hi, lo
     times = [t.strip() for t in reservable_times.split(",") if t.strip()]
     try:
         c = catalog_service.create_campaign(
             db, store_id=sid, package_id=int(package_id), name=sanitize_text(name, 128),
             stock=int(stock), per_person_limit=int(per_person_limit),
             starts_at=starts_at, ends_at=ends_at,
+            min_people=lo, max_people=hi,
             need_reservation=bool(need_reservation), reservable_times=times)
     except ValueError as e:
         return JSONResponse({"detail": str(e)}, status_code=400)
